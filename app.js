@@ -107,72 +107,247 @@ sweepRing.position.y = 0.065;
 cityRoot.add(sweepRing);
 
 const landmarks = [];
-const neonLineMtl = new THREE.LineBasicMaterial({
-  color: 0x77f0ff,
-  transparent: true,
-  opacity: 0.15
-});
-const createNeonTowerMaterial = () =>
-  new THREE.MeshStandardMaterial({
-    color: 0x112a4e,
-    emissive: 0x45d4ff,
-    emissiveIntensity: 0,
-    metalness: 0.25,
-    roughness: 0.35
-  });
 
-const addLandmark = (name, group, triggerAt, targetIntensity) => {
+const makeFacadeTexture = (baseHex, lineHex) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = `#${baseHex.toString(16).padStart(6, "0")}`;
+  ctx.fillRect(0, 0, 256, 256);
+
+  const line = `#${lineHex.toString(16).padStart(6, "0")}`;
+  ctx.strokeStyle = line;
+  ctx.globalAlpha = 0.28;
+  for (let x = 0; x <= 256; x += 20) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 256);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.16;
+  for (let y = 0; y <= 256; y += 16) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(256, y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  const grad = ctx.createLinearGradient(0, 0, 256, 256);
+  grad.addColorStop(0, "rgba(255,255,255,0.08)");
+  grad.addColorStop(0.6, "rgba(255,255,255,0.0)");
+  grad.addColorStop(1, "rgba(255,255,255,0.12)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 14);
+  tex.needsUpdate = true;
+  return tex;
+};
+
+const makeWindowGlowTexture = (tintHex) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = `#${tintHex.toString(16).padStart(6, "0")}`;
+  for (let y = 8; y < 256; y += 14) {
+    for (let x = 8; x < 256; x += 14) {
+      const on = Math.random() > 0.38;
+      if (!on) continue;
+      const w = 6 + Math.random() * 3;
+      const h = 8 + Math.random() * 2;
+      ctx.globalAlpha = 0.35 + Math.random() * 0.6;
+      ctx.fillRect(x, y, w, h);
+    }
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 16);
+  tex.needsUpdate = true;
+  return tex;
+};
+
+const createModernMaterial = ({ baseColor, emissiveColor, metalness, roughness, transmission = 0 }) => {
+  const map = makeFacadeTexture(baseColor, 0x8ad8ff);
+  const emissiveMap = makeWindowGlowTexture(0xa8ecff);
+  return new THREE.MeshPhysicalMaterial({
+    color: baseColor,
+    emissive: emissiveColor,
+    emissiveIntensity: 0,
+    emissiveMap,
+    metalness,
+    roughness,
+    transmission,
+    thickness: transmission > 0 ? 0.6 : 0,
+    clearcoat: 1,
+    clearcoatRoughness: 0.08,
+    map,
+    roughnessMap: map,
+    bumpMap: map,
+    bumpScale: 0.065
+  });
+};
+
+const addLandmark = ({ name, group, triggerAt, targetIntensity, sweepColor }) => {
   const meshes = [];
+  const lightNodes = [];
   group.traverse((child) => {
     if (child.isMesh) meshes.push(child);
   });
-  group.userData = { name, triggerAt, targetIntensity, meshes };
+
+  const sweep = new THREE.Mesh(
+    new THREE.RingGeometry(0.09, 0.15, 64),
+    new THREE.MeshBasicMaterial({
+      color: sweepColor,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  sweep.rotation.x = -Math.PI / 2;
+  sweep.position.y = 0.004;
+  group.add(sweep);
+
+  group.userData = { name, triggerAt, targetIntensity, meshes, sweep, lightNodes };
   cityRoot.add(group);
   landmarks.push(group);
 };
 
-// 东方明珠（科幻霓虹版）
+// 东方明珠（结构修正：三根支撑腿 + 双球 + 天线）
 const pearl = new THREE.Group();
-pearl.position.set(-0.24, 0.065, 0.1);
-const pearlMast = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.44, 20), createNeonTowerMaterial());
-pearlMast.position.y = 0.22;
-const pearlBottomSphere = new THREE.Mesh(new THREE.SphereGeometry(0.06, 24, 24), createNeonTowerMaterial());
-pearlBottomSphere.position.y = 0.14;
-const pearlTopSphere = new THREE.Mesh(new THREE.SphereGeometry(0.04, 24, 24), createNeonTowerMaterial());
-pearlTopSphere.position.y = 0.31;
-const pearlCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.07, 20), createNeonTowerMaterial());
-pearlCrown.position.y = 0.41;
-pearl.add(pearlMast, pearlBottomSphere, pearlTopSphere, pearlCrown);
-pearl.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(0.03, 0.02, 0.07, 20)), neonLineMtl));
-addLandmark("pearl", pearl, 0.08, 1.1);
+pearl.position.set(-0.28, 0.065, -0.02);
+const pearlMat = createModernMaterial({
+  baseColor: 0x1d2742,
+  emissiveColor: 0x49d6ff,
+  metalness: 0.5,
+  roughness: 0.18
+});
+for (let i = 0; i < 3; i += 1) {
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.012, 0.18, 16), pearlMat);
+  const a = (Math.PI * 2 * i) / 3;
+  leg.position.set(Math.cos(a) * 0.045, 0.09, Math.sin(a) * 0.045);
+  leg.rotation.z = 0.2 * Math.cos(a);
+  leg.rotation.x = 0.2 * Math.sin(a);
+  pearl.add(leg);
+}
+const pearlLowerSphere = new THREE.Mesh(new THREE.SphereGeometry(0.072, 26, 26), pearlMat);
+pearlLowerSphere.position.y = 0.2;
+const pearlUpperSphere = new THREE.Mesh(new THREE.SphereGeometry(0.048, 24, 24), pearlMat);
+pearlUpperSphere.position.y = 0.39;
+const pearlMidMast = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.42, 16), pearlMat);
+pearlMidMast.position.y = 0.31;
+const pearlAntenna = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.22, 12), pearlMat);
+pearlAntenna.position.y = 0.55;
+const pearlLowerRing = new THREE.Mesh(new THREE.TorusGeometry(0.078, 0.0035, 10, 32), new THREE.MeshBasicMaterial({
+  color: 0x6de9ff,
+  transparent: true,
+  opacity: 0.2,
+  blending: THREE.AdditiveBlending
+}));
+pearlLowerRing.rotation.x = Math.PI / 2;
+pearlLowerRing.position.y = 0.2;
+const pearlUpperRing = pearlLowerRing.clone();
+pearlUpperRing.scale.setScalar(0.72);
+pearlUpperRing.position.y = 0.39;
+pearl.add(pearlMidMast, pearlLowerSphere, pearlUpperSphere, pearlAntenna, pearlLowerRing, pearlUpperRing);
+addLandmark({ name: "pearl", group: pearl, triggerAt: 0.06, targetIntensity: 1.35, sweepColor: 0xff89df });
 
-// 上海中心（流线高塔）
-const tower = new THREE.Group();
-tower.position.set(0.02, 0.065, 0.02);
-const towerBody = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.034, 0.64, 28), createNeonTowerMaterial());
-towerBody.position.y = 0.32;
-towerBody.rotation.y = 0.3;
-const towerTip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.08, 20), createNeonTowerMaterial());
-towerTip.position.y = 0.68;
-tower.add(towerBody, towerTip);
-tower.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(0.058, 0.034, 0.64, 16)), neonLineMtl));
-addLandmark("shanghai-tower", tower, 0.34, 1.35);
-
-// 环球金融中心（开瓶器轮廓）
-const swfc = new THREE.Group();
-swfc.position.set(0.24, 0.065, 0.05);
-const swfcBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.58, 0.08), createNeonTowerMaterial());
-swfcBody.position.y = 0.29;
-const swfcHole = new THREE.Mesh(
-  new THREE.BoxGeometry(0.058, 0.06, 0.09),
-  new THREE.MeshStandardMaterial({ color: 0x03050b, emissive: 0x112235, emissiveIntensity: 0.2 })
+// 上海中心（玻璃流线塔 + 螺旋线）
+const shCenter = new THREE.Group();
+shCenter.position.set(0, 0.065, -0.09);
+const centerMat = createModernMaterial({
+  baseColor: 0x1a3354,
+  emissiveColor: 0x3ee5ff,
+  metalness: 0.22,
+  roughness: 0.08,
+  transmission: 0.28
+});
+const centerBody = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.043, 0.82, 34), centerMat);
+centerBody.position.y = 0.41;
+centerBody.rotation.y = 0.34;
+const centerTip = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.11, 22), centerMat);
+centerTip.position.y = 0.88;
+const helixPts = [];
+for (let i = 0; i <= 58; i += 1) {
+  const t = i / 58;
+  const ang = t * Math.PI * 7.6;
+  const radius = THREE.MathUtils.lerp(0.088, 0.043, t) + 0.0025;
+  helixPts.push(new THREE.Vector3(Math.cos(ang) * radius, 0.02 + t * 0.82, Math.sin(ang) * radius));
+}
+const helix = new THREE.Mesh(
+  new THREE.TubeGeometry(new THREE.CatmullRomCurve3(helixPts), 120, 0.0026, 8, false),
+  new THREE.MeshBasicMaterial({ color: 0x93ffff, transparent: true, opacity: 0.6 })
 );
-swfcHole.position.y = 0.53;
-const swfcTopFrame = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.08), createNeonTowerMaterial());
-swfcTopFrame.position.y = 0.56;
-swfc.add(swfcBody, swfcHole, swfcTopFrame);
-swfc.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.12, 0.58, 0.08)), neonLineMtl));
-addLandmark("swfc", swfc, 0.62, 1.25);
+shCenter.add(centerBody, centerTip, helix);
+addLandmark({ name: "shanghai-tower", group: shCenter, triggerAt: 0.36, targetIntensity: 1.15, sweepColor: 0x8ffbff });
+
+// 环球金融中心（开瓶器轮廓 + 金色边框）
+const swfc = new THREE.Group();
+swfc.position.set(0.29, 0.065, -0.01);
+const swfcShape = new THREE.Shape();
+swfcShape.moveTo(-0.08, 0);
+swfcShape.lineTo(0.08, 0);
+swfcShape.lineTo(0.052, 0.67);
+swfcShape.lineTo(0, 0.74);
+swfcShape.lineTo(-0.052, 0.67);
+swfcShape.closePath();
+const hole = new THREE.Path();
+hole.moveTo(-0.036, 0.57);
+hole.lineTo(0.036, 0.57);
+hole.lineTo(0.02, 0.63);
+hole.lineTo(-0.02, 0.63);
+hole.closePath();
+swfcShape.holes.push(hole);
+const swfcGeom = new THREE.ExtrudeGeometry(swfcShape, { depth: 0.09, bevelEnabled: false });
+const swfcMat = createModernMaterial({
+  baseColor: 0x172846,
+  emissiveColor: 0x4bc9ff,
+  metalness: 0.56,
+  roughness: 0.22
+});
+const swfcBody = new THREE.Mesh(swfcGeom, swfcMat);
+swfcBody.position.z = -0.045;
+const swfcFrame = new THREE.LineSegments(
+  new THREE.EdgesGeometry(swfcGeom),
+  new THREE.LineBasicMaterial({ color: 0xffd86a, transparent: true, opacity: 0.65 })
+);
+swfcFrame.position.z = -0.045;
+swfc.add(swfcBody, swfcFrame);
+addLandmark({ name: "swfc", group: swfc, triggerAt: 0.66, targetIntensity: 1.28, sweepColor: 0xffd977 });
+
+// Dynamic light beads for each landmark to simulate modern light-up animation.
+for (const l of landmarks) {
+  const beadCount = l.userData.name === "shanghai-tower" ? 16 : 12;
+  for (let i = 0; i < beadCount; i += 1) {
+    const bead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.008, 12, 12),
+      new THREE.MeshBasicMaterial({
+        color: l.userData.name === "swfc" ? 0xffe08f : 0x88f8ff,
+        transparent: true,
+        opacity: 0.12,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    bead.position.set(
+      (Math.random() - 0.5) * 0.1,
+      0.08 + Math.random() * 0.66,
+      (Math.random() - 0.5) * 0.07
+    );
+    l.add(bead);
+    l.userData.lightNodes.push(bead);
+  }
+}
 
 const particleCount = lowPowerDevice ? 180 : 420;
 const particleGeom = new THREE.BufferGeometry();
@@ -203,6 +378,8 @@ cityRoot.add(particles);
 // ---------- Character + portal FX ----------
 const characterContainer = new THREE.Group();
 characterContainer.visible = false;
+// Keep Hu Xiaobao in center-front so landmarks won't occlude the character.
+characterContainer.position.set(0, 0.06, 0.52);
 anchor.group.add(characterContainer);
 
 const portalRing = new THREE.Mesh(
@@ -262,10 +439,132 @@ clickPulse.rotation.x = -Math.PI / 2;
 clickPulse.position.y = 0.07;
 characterContainer.add(clickPulse);
 
+const tapHitbox = new THREE.Mesh(
+  new THREE.SphereGeometry(0.42, 20, 20),
+  new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+);
+tapHitbox.position.set(0, 0.28, 0);
+characterContainer.add(tapHitbox);
+
+const tapAssistPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(0.74, 0.96),
+  new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })
+);
+tapAssistPlane.position.set(0, 0.36, 0.02);
+characterContainer.add(tapAssistPlane);
+
 let clickPulseT = 1;
+
+// ---------- Fireworks ----------
+const fireworksRoot = new THREE.Group();
+fireworksRoot.visible = false;
+fireworksRoot.position.z = -0.2;
+anchor.group.add(fireworksRoot);
+const fireworks = [];
+let fireworksCooldown = 0;
+const maxFireworks = lowPowerDevice ? 10 : 18;
 
 const setStatus = (text) => {
   statusText.textContent = text;
+};
+
+const createFireworkBurst = () => {
+  const shapeTypes = ["sphere", "ring", "star"];
+  const shape = shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
+  const count = lowPowerDevice ? 140 : 280;
+  const positions = new Float32Array(count * 3);
+  const dirs = new Float32Array(count * 3);
+  const palette = [0xff72d6, 0x75f5ff, 0xffd676, 0x95ff8a, 0xb48fff];
+  const color = palette[Math.floor(Math.random() * palette.length)];
+  const radius = 0.58 + Math.random() * 0.6;
+
+  for (let i = 0; i < count; i += 1) {
+    const ai = i * 3;
+    const a = (Math.PI * 2 * i) / count;
+    let r = 1;
+    if (shape === "star") r = i % 2 === 0 ? 1 : 0.45;
+    if (shape === "ring") {
+      dirs[ai] = Math.cos(a) * r;
+      dirs[ai + 1] = (Math.random() - 0.5) * 0.25;
+      dirs[ai + 2] = Math.sin(a) * r;
+    } else {
+      const v = new THREE.Vector3(
+        Math.cos(a) * r,
+        (Math.random() - 0.35) * 1.25,
+        Math.sin(a) * r
+      ).normalize();
+      dirs[ai] = v.x;
+      dirs[ai + 1] = v.y;
+      dirs[ai + 2] = v.z;
+    }
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({
+    color,
+    size: lowPowerDevice ? 0.034 : 0.052,
+    transparent: true,
+    opacity: 1,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const points = new THREE.Points(geom, mat);
+
+  const origin = new THREE.Vector3(
+    (Math.random() - 0.5) * 2.8,
+    0.2 + Math.random() * 1.45,
+    -0.95 + (Math.random() - 0.5) * 2.25
+  );
+  points.position.copy(origin);
+  fireworksRoot.add(points);
+  fireworks.push({ points, dirs, radius, age: 0, life: 3.6 + Math.random() * 1.9 });
+};
+
+const updateFireworks = (dt) => {
+  if (fireworks.length > maxFireworks) {
+    const overflow = fireworks.length - maxFireworks;
+    for (let i = 0; i < overflow; i += 1) {
+      const fw = fireworks.shift();
+      if (!fw) break;
+      fireworksRoot.remove(fw.points);
+      fw.points.geometry.dispose();
+      fw.points.material.dispose();
+    }
+  }
+
+  fireworksCooldown -= dt;
+  if (fireworksCooldown <= 0) {
+    const burstNum = lowPowerDevice ? 2 : 3 + Math.round(Math.random() * 2);
+    for (let i = 0; i < burstNum; i += 1) {
+      createFireworkBurst();
+    }
+    fireworksCooldown = lowPowerDevice ? 0.2 + Math.random() * 0.14 : 0.08 + Math.random() * 0.07;
+  }
+
+  for (let i = fireworks.length - 1; i >= 0; i -= 1) {
+    const fw = fireworks[i];
+    fw.age += dt;
+    const t = fw.age / fw.life;
+    const pArr = fw.points.geometry.attributes.position.array;
+
+    for (let j = 0; j < pArr.length; j += 3) {
+      const speed = fw.radius * (1 - 0.18 * t);
+      pArr[j] = fw.dirs[j] * speed * t;
+      pArr[j + 1] = fw.dirs[j + 1] * speed * t - t * t * 0.07;
+      pArr[j + 2] = fw.dirs[j + 2] * speed * t;
+    }
+
+    fw.points.geometry.attributes.position.needsUpdate = true;
+    fw.points.material.opacity = Math.max(0, 1 - t * 0.8);
+
+    if (t >= 1) {
+      fireworksRoot.remove(fw.points);
+      fw.points.geometry.dispose();
+      fw.points.material.dispose();
+      fireworks.splice(i, 1);
+    }
+  }
 };
 
 const resetCity = () => {
@@ -276,13 +575,19 @@ const resetCity = () => {
 
   for (const l of landmarks) {
     for (const mesh of l.userData.meshes) {
-      if ("emissiveIntensity" in mesh.material) {
-        mesh.material.emissiveIntensity = 0;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const mat of mats) {
+        if (!("emissiveIntensity" in mat)) continue;
+        mat.emissiveIntensity = 0;
       }
     }
+    l.userData.sweep.material.opacity = 0;
+    l.userData.sweep.scale.setScalar(1);
+    l.rotation.y = 0;
   }
 
   particles.material.opacity = 0.12;
+  fireworksCooldown = 0;
 };
 
 const resetCharacter = () => {
@@ -309,6 +614,7 @@ const switchStage = (nextStage) => {
   if (stage === STAGE.CITY_LIGHT_UP) {
     setStatus("城市亮起中...");
     cityRoot.visible = true;
+    fireworksRoot.visible = true;
     characterContainer.visible = false;
     resetCity();
     resetCharacter();
@@ -352,6 +658,14 @@ loader.load(
     const targetHeight = 0.36;
     const scale = targetHeight / Math.max(size.y, 0.001);
     model.scale.setScalar(scale);
+    model.renderOrder = 20;
+    model.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of mats) {
+        mat.depthTest = false;
+      }
+    });
 
     modelRoot.add(model);
     modelRoot.position.set(0, baseY, 0);
@@ -408,8 +722,12 @@ const forEachMeshMaterial = (obj, fn) => {
 };
 
 const playIntro = async () => {
-  if (!audioUnlocked || !targetVisible || stage !== STAGE.INTERACTIVE) return;
+  if (!targetVisible || (stage !== STAGE.INTERACTIVE && stage !== STAGE.CHARACTER_ENTRANCE)) return;
   if (introPlaying) return;
+  if (!audioUnlocked) {
+    await unlockAudioIfNeeded();
+  }
+  if (!audioUnlocked) return;
 
   helloAudio.pause();
   helloAudio.currentTime = 0;
@@ -438,6 +756,20 @@ const playIntro = async () => {
   }
 };
 
+const getClientPoint = (event) => {
+  if (!event) return null;
+  if ("clientX" in event && "clientY" in event) {
+    return { x: event.clientX, y: event.clientY };
+  }
+  if (event.touches?.[0]) {
+    return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }
+  if (event.changedTouches?.[0]) {
+    return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+  }
+  return null;
+};
+
 introAudio.addEventListener("ended", () => {
   introPlaying = false;
   setStatus("上海已点亮，点击沪小宝开始讲解");
@@ -451,20 +783,53 @@ introAudio.addEventListener("ended", () => {
   });
 });
 
-const onPointerDown = (event) => {
-  if (!targetVisible || !model || stage !== STAGE.INTERACTIVE) return;
+const onPointerDown = async (event) => {
+  if (!targetVisible) return;
+  const point = getClientPoint(event);
+  if (!point) return;
 
-  const x = (event.clientX / window.innerWidth) * 2 - 1;
-  const y = -(event.clientY / window.innerHeight) * 2 + 1;
+  const x = (point.x / window.innerWidth) * 2 - 1;
+  const y = -(point.y / window.innerHeight) * 2 + 1;
   pointer.set(x, y);
 
   raycaster.setFromCamera(pointer, camera);
-  const intersects = raycaster.intersectObject(model, true);
-  if (intersects.length > 0) {
-    playIntro();
+  const hitTargets = [];
+  if (model) hitTargets.push(model);
+  hitTargets.push(tapHitbox, tapAssistPlane);
+  const intersects = raycaster.intersectObjects(hitTargets, true);
+  let hit = intersects.length > 0;
+
+  // Fallback: screen-space proximity hit test for mobile taps.
+  if (!hit && modelRoot) {
+    const sp = modelRoot.getWorldPosition(new THREE.Vector3()).project(camera);
+    const sx = (sp.x + 1) * 0.5 * window.innerWidth;
+    const sy = (1 - sp.y) * 0.5 * window.innerHeight;
+    const dx = point.x - sx;
+    const dy = point.y - sy;
+    hit = Math.sqrt(dx * dx + dy * dy) <= Math.min(window.innerWidth, window.innerHeight) * 0.46;
+  }
+
+  if (!hit && modelRoot) {
+    // Ultimate fallback for mobile jitter: any tap in center zone triggers.
+    hit =
+      point.x > window.innerWidth * 0.2 &&
+      point.x < window.innerWidth * 0.8 &&
+      point.y > window.innerHeight * 0.16 &&
+      point.y < window.innerHeight * 0.84;
+  }
+
+  if (hit) {
+    await unlockAudioIfNeeded();
+    await playIntro();
   }
 };
 renderer.domElement.addEventListener("pointerdown", onPointerDown);
+const onTouchStart = (e) => {
+  onPointerDown(e);
+};
+renderer.domElement.addEventListener("touchstart", onTouchStart, { passive: true });
+renderer.domElement.addEventListener("click", onPointerDown);
+window.addEventListener("pointerup", onPointerDown, { passive: true });
 
 anchor.onTargetFound = () => {
   targetVisible = true;
@@ -486,6 +851,14 @@ anchor.onTargetLost = () => {
   introAudio.currentTime = 0;
 
   cityRoot.visible = false;
+  fireworksRoot.visible = false;
+  for (let i = fireworks.length - 1; i >= 0; i -= 1) {
+    const fw = fireworks[i];
+    fireworksRoot.remove(fw.points);
+    fw.points.geometry.dispose();
+    fw.points.material.dispose();
+    fireworks.splice(i, 1);
+  }
   resetCharacter();
   setStatus("扫描图片，点亮上海");
 };
@@ -525,9 +898,18 @@ const animateCity = (elapsed, dt) => {
     const local = THREE.MathUtils.clamp((cityProgress - l.userData.triggerAt) / 0.24, 0, 1);
     const eased = local * local * (3 - 2 * local);
     for (const mesh of l.userData.meshes) {
-      if ("emissiveIntensity" in mesh.material) {
-        mesh.material.emissiveIntensity = eased * l.userData.targetIntensity;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const mat of mats) {
+        if (!("emissiveIntensity" in mat)) continue;
+        mat.emissiveIntensity = eased * l.userData.targetIntensity;
       }
+    }
+    l.userData.sweep.material.opacity = Math.max(0, 0.72 - Math.abs((local % 1) - 0.5) * 1.5) * eased;
+    l.userData.sweep.scale.setScalar(1 + eased * 1.9);
+    for (let i = 0; i < l.userData.lightNodes.length; i += 1) {
+      const bead = l.userData.lightNodes[i];
+      const twinkle = 0.45 + Math.sin(cityProgress * 14 + i * 0.65) * 0.35;
+      bead.material.opacity = Math.max(0.08, eased * twinkle);
     }
   }
 
@@ -589,7 +971,8 @@ const animateInteractive = (elapsed, dt) => {
   if (!modelRoot) return;
 
   modelRoot.position.y = baseY + Math.sin(elapsed * 2) * 0.03;
-  modelRoot.rotation.y += 0.005;
+  // Keep Hu Xiaobao facing forward; no auto-rotation.
+  modelRoot.rotation.y = 0;
 
   roadRing.rotation.z += dt * 0.22;
   roadRing.material.opacity = 0.25 + Math.sin(elapsed * 3.5) * 0.06;
@@ -598,9 +981,17 @@ const animateInteractive = (elapsed, dt) => {
   const glow = 0.78 + Math.sin(elapsed * 4.2) * 0.18;
   for (const l of landmarks) {
     for (const mesh of l.userData.meshes) {
-      if ("emissiveIntensity" in mesh.material) {
-        mesh.material.emissiveIntensity = Math.max(mesh.material.emissiveIntensity, glow);
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const mat of mats) {
+        if (!("emissiveIntensity" in mat)) continue;
+        mat.emissiveIntensity = Math.max(mat.emissiveIntensity, glow * l.userData.targetIntensity * 0.68);
       }
+    }
+    l.userData.sweep.material.opacity = 0.24 + Math.sin(elapsed * 3.2) * 0.12;
+    l.userData.sweep.scale.setScalar(2.4 + Math.sin(elapsed * 2.1) * 0.14);
+    for (let i = 0; i < l.userData.lightNodes.length; i += 1) {
+      const bead = l.userData.lightNodes[i];
+      bead.material.opacity = 0.42 + Math.sin(elapsed * 6.2 + i * 0.7) * 0.28;
     }
   }
 
@@ -623,6 +1014,7 @@ const loop = () => {
     if (stage === STAGE.CITY_LIGHT_UP) animateCity(stageElapsed, dt);
     if (stage === STAGE.CHARACTER_ENTRANCE) animateCharacterEntrance(stageElapsed);
     if (stage === STAGE.INTERACTIVE) animateInteractive(elapsed, dt);
+    updateFireworks(dt);
   }
 
   renderer.render(scene, camera);
@@ -634,6 +1026,9 @@ window.addEventListener("beforeunload", () => {
   }
 
   renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+  renderer.domElement.removeEventListener("touchstart", onTouchStart);
+  renderer.domElement.removeEventListener("click", onPointerDown);
+  window.removeEventListener("pointerup", onPointerDown);
   introAudio.pause();
   helloAudio.pause();
   mindARThree.stop();
