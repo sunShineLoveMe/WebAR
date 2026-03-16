@@ -155,3 +155,63 @@
 - 炫酷特效版 WebAR 页面
 - 可运行的演示链接与本地启动说明
 - 一版“性能优先”的降级开关
+
+---
+
+## 12. 如何启动项目（当前可用）
+
+### 12.1 本地启动
+
+在项目目录打开终端 1：
+
+```bash
+cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
+python3 -m http.server 5173 --bind 0.0.0.0
+```
+
+再开终端 2（HTTPS 给手机访问）：
+
+```bash
+cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
+./.bin/ngrok http 5173
+```
+
+复制终端输出的 `https://*.ngrok-free.app`，用手机打开。
+
+### 12.2 手机访问要求
+
+- iOS：使用 Safari 打开 `https://` 链接
+- Android：建议 Chrome
+- 进入页面后点击 `启动 AR`
+- 扫描用于编译 `assets/targets.mind` 的同一张目标图
+
+### 12.3 是否需要重启
+
+以下情况建议重启服务并刷新页面：
+
+- 修改了 `app.js` / `index.html` / `style.css`
+- 替换了 `assets/targets.mind`
+- 隧道地址过期或无法访问
+
+推荐顺序：
+
+1. 关闭旧进程
+2. 重新启动本地服务
+3. 重新启动 ngrok
+4. 手机端强制刷新页面
+
+### 12.4 常见问题
+
+- `ERR_NGROK_108`（超出会话数）
+
+```bash
+pkill -f ngrok || true
+./.bin/ngrok http 5173
+```
+
+- 端口被占用（Address already in use）
+
+```bash
+lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+python3 -m http.server 5173 --bind 0.0.0.0
+```

@@ -106,34 +106,73 @@ sweepRing.rotation.x = -Math.PI / 2;
 sweepRing.position.y = 0.065;
 cityRoot.add(sweepRing);
 
-const buildings = [];
-const buildingCount = lowPowerDevice ? 54 : 86;
-for (let i = 0; i < buildingCount; i += 1) {
-  const radius = 0.16 + Math.random() * 0.5;
-  const angle = Math.random() * Math.PI * 2;
-  const x = Math.cos(angle) * radius;
-  const z = Math.sin(angle) * radius;
-  const h = 0.07 + Math.random() * 0.3;
+const landmarks = [];
+const neonLineMtl = new THREE.LineBasicMaterial({
+  color: 0x77f0ff,
+  transparent: true,
+  opacity: 0.15
+});
+const createNeonTowerMaterial = () =>
+  new THREE.MeshStandardMaterial({
+    color: 0x112a4e,
+    emissive: 0x45d4ff,
+    emissiveIntensity: 0,
+    metalness: 0.25,
+    roughness: 0.35
+  });
 
-  const building = new THREE.Mesh(
-    new THREE.BoxGeometry(0.03 + Math.random() * 0.04, h, 0.03 + Math.random() * 0.04),
-    new THREE.MeshStandardMaterial({
-      color: 0x17467a,
-      emissive: 0x43d7ff,
-      emissiveIntensity: 0,
-      metalness: 0.3,
-      roughness: 0.45
-    })
-  );
+const addLandmark = (name, group, triggerAt, targetIntensity) => {
+  const meshes = [];
+  group.traverse((child) => {
+    if (child.isMesh) meshes.push(child);
+  });
+  group.userData = { name, triggerAt, targetIntensity, meshes };
+  cityRoot.add(group);
+  landmarks.push(group);
+};
 
-  building.position.set(x, 0.065 + h / 2, z);
-  building.userData = {
-    targetIntensity: 0.25 + Math.random() * 1.35,
-    triggerAt: Math.random() * 0.95
-  };
-  cityRoot.add(building);
-  buildings.push(building);
-}
+// 东方明珠（科幻霓虹版）
+const pearl = new THREE.Group();
+pearl.position.set(-0.24, 0.065, 0.1);
+const pearlMast = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.44, 20), createNeonTowerMaterial());
+pearlMast.position.y = 0.22;
+const pearlBottomSphere = new THREE.Mesh(new THREE.SphereGeometry(0.06, 24, 24), createNeonTowerMaterial());
+pearlBottomSphere.position.y = 0.14;
+const pearlTopSphere = new THREE.Mesh(new THREE.SphereGeometry(0.04, 24, 24), createNeonTowerMaterial());
+pearlTopSphere.position.y = 0.31;
+const pearlCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.07, 20), createNeonTowerMaterial());
+pearlCrown.position.y = 0.41;
+pearl.add(pearlMast, pearlBottomSphere, pearlTopSphere, pearlCrown);
+pearl.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(0.03, 0.02, 0.07, 20)), neonLineMtl));
+addLandmark("pearl", pearl, 0.08, 1.1);
+
+// 上海中心（流线高塔）
+const tower = new THREE.Group();
+tower.position.set(0.02, 0.065, 0.02);
+const towerBody = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.034, 0.64, 28), createNeonTowerMaterial());
+towerBody.position.y = 0.32;
+towerBody.rotation.y = 0.3;
+const towerTip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.08, 20), createNeonTowerMaterial());
+towerTip.position.y = 0.68;
+tower.add(towerBody, towerTip);
+tower.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(0.058, 0.034, 0.64, 16)), neonLineMtl));
+addLandmark("shanghai-tower", tower, 0.34, 1.35);
+
+// 环球金融中心（开瓶器轮廓）
+const swfc = new THREE.Group();
+swfc.position.set(0.24, 0.065, 0.05);
+const swfcBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.58, 0.08), createNeonTowerMaterial());
+swfcBody.position.y = 0.29;
+const swfcHole = new THREE.Mesh(
+  new THREE.BoxGeometry(0.058, 0.06, 0.09),
+  new THREE.MeshStandardMaterial({ color: 0x03050b, emissive: 0x112235, emissiveIntensity: 0.2 })
+);
+swfcHole.position.y = 0.53;
+const swfcTopFrame = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.08), createNeonTowerMaterial());
+swfcTopFrame.position.y = 0.56;
+swfc.add(swfcBody, swfcHole, swfcTopFrame);
+swfc.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.12, 0.58, 0.08)), neonLineMtl));
+addLandmark("swfc", swfc, 0.62, 1.25);
 
 const particleCount = lowPowerDevice ? 180 : 420;
 const particleGeom = new THREE.BufferGeometry();
@@ -194,6 +233,20 @@ const portalBeam = new THREE.Mesh(
 portalBeam.position.y = 0.36;
 characterContainer.add(portalBeam);
 
+const portalCoreBeam = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.045, 0.07, 0.62, 26, 1, true),
+  new THREE.MeshBasicMaterial({
+    color: 0xa4f7ff,
+    transparent: true,
+    opacity: 0,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  })
+);
+portalCoreBeam.position.y = 0.35;
+characterContainer.add(portalCoreBeam);
+
 const clickPulse = new THREE.Mesh(
   new THREE.RingGeometry(0.09, 0.12, 48),
   new THREE.MeshBasicMaterial({
@@ -221,8 +274,12 @@ const resetCity = () => {
   sweepRing.material.opacity = 0;
   sweepRing.scale.setScalar(1);
 
-  for (const b of buildings) {
-    b.material.emissiveIntensity = 0;
+  for (const l of landmarks) {
+    for (const mesh of l.userData.meshes) {
+      if ("emissiveIntensity" in mesh.material) {
+        mesh.material.emissiveIntensity = 0;
+      }
+    }
   }
 
   particles.material.opacity = 0.12;
@@ -239,6 +296,7 @@ const resetCharacter = () => {
 
   portalRing.material.opacity = 0;
   portalBeam.material.opacity = 0;
+  portalCoreBeam.material.opacity = 0;
   clickPulse.material.opacity = 0;
   clickPulse.scale.setScalar(1);
   clickPulseT = 1;
@@ -257,7 +315,7 @@ const switchStage = (nextStage) => {
   }
 
   if (stage === STAGE.CHARACTER_ENTRANCE) {
-    setStatus("沪小宝正在登场...");
+    setStatus("光柱召唤沪小宝...");
     if (modelRoot) {
       characterContainer.visible = true;
       modelRoot.visible = true;
@@ -343,6 +401,12 @@ const playHelloOnce = async () => {
   }
 };
 
+const forEachMeshMaterial = (obj, fn) => {
+  if (!obj.isMesh || !obj.material) return;
+  const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+  for (const m of mats) fn(m);
+};
+
 const playIntro = async () => {
   if (!audioUnlocked || !targetVisible || stage !== STAGE.INTERACTIVE) return;
   if (introPlaying) return;
@@ -356,10 +420,11 @@ const playIntro = async () => {
 
   if (model) {
     model.traverse((obj) => {
-      if (!obj.isMesh) return;
-      if (!obj.material || !("emissiveIntensity" in obj.material)) return;
-      obj.material.emissive = new THREE.Color(0x86f5ff);
-      obj.material.emissiveIntensity = 0.65;
+      forEachMeshMaterial(obj, (mat) => {
+        if (!("emissiveIntensity" in mat)) return;
+        mat.emissive = new THREE.Color(0x86f5ff);
+        mat.emissiveIntensity = 0.65;
+      });
     });
   }
 
@@ -379,9 +444,10 @@ introAudio.addEventListener("ended", () => {
 
   if (!model) return;
   model.traverse((obj) => {
-    if (!obj.isMesh) return;
-    if (!obj.material || !("emissiveIntensity" in obj.material)) return;
-    obj.material.emissiveIntensity = 0.06;
+    forEachMeshMaterial(obj, (mat) => {
+      if (!("emissiveIntensity" in mat)) return;
+      mat.emissiveIntensity = 0.06;
+    });
   });
 });
 
@@ -454,11 +520,15 @@ const animateCity = (elapsed, dt) => {
   cityPlate.material.emissiveIntensity = 0.08 + cityProgress * 0.95;
   roadRing.material.opacity = 0.14 + cityProgress * 0.36;
 
-  // Progressive light-up per building for the "city awakening" feeling.
-  for (const b of buildings) {
-    const local = THREE.MathUtils.clamp((cityProgress - b.userData.triggerAt) / 0.26, 0, 1);
+  // Progressive light-up for Shanghai's three iconic towers in neon style.
+  for (const l of landmarks) {
+    const local = THREE.MathUtils.clamp((cityProgress - l.userData.triggerAt) / 0.24, 0, 1);
     const eased = local * local * (3 - 2 * local);
-    b.material.emissiveIntensity = eased * b.userData.targetIntensity;
+    for (const mesh of l.userData.meshes) {
+      if ("emissiveIntensity" in mesh.material) {
+        mesh.material.emissiveIntensity = eased * l.userData.targetIntensity;
+      }
+    }
   }
 
   const sweep = (elapsed * 1.15) % 1;
@@ -477,6 +547,10 @@ const animateCity = (elapsed, dt) => {
   particles.material.opacity = 0.18 + cityProgress * 0.45;
   particles.rotation.y += dt * 0.32;
 
+  for (const l of landmarks) {
+    l.rotation.y += dt * 0.08;
+  }
+
   if (cityProgress >= 1) {
     switchStage(STAGE.CHARACTER_ENTRANCE);
   }
@@ -492,11 +566,13 @@ const animateCharacterEntrance = (elapsed) => {
   modelRoot.visible = true;
 
   portalRing.rotation.z += 0.05;
-  portalRing.material.opacity = (1 - p) * 0.95;
-  portalRing.scale.setScalar(0.9 + p * 0.7);
+  portalRing.material.opacity = (1 - p) * 0.45;
+  portalRing.scale.setScalar(0.9 + p * 0.35);
 
-  portalBeam.material.opacity = (1 - p) * 0.35;
-  portalBeam.scale.y = 0.8 + (1 - p) * 0.4;
+  portalBeam.material.opacity = (1 - p) * 0.72;
+  portalBeam.scale.y = 0.9 + (1 - p) * 0.55;
+  portalCoreBeam.material.opacity = (1 - p) * 0.88;
+  portalCoreBeam.scale.y = 0.92 + (1 - p) * 0.65;
 
   modelRoot.scale.setScalar(0.08 + 0.92 * eased);
   modelRoot.position.y = baseY - (1 - eased) * 0.16;
@@ -504,6 +580,7 @@ const animateCharacterEntrance = (elapsed) => {
   if (p >= 1) {
     portalRing.material.opacity = 0;
     portalBeam.material.opacity = 0;
+    portalCoreBeam.material.opacity = 0;
     switchStage(STAGE.INTERACTIVE);
   }
 };
@@ -517,6 +594,15 @@ const animateInteractive = (elapsed, dt) => {
   roadRing.rotation.z += dt * 0.22;
   roadRing.material.opacity = 0.25 + Math.sin(elapsed * 3.5) * 0.06;
   particles.rotation.y += dt * 0.2;
+
+  const glow = 0.78 + Math.sin(elapsed * 4.2) * 0.18;
+  for (const l of landmarks) {
+    for (const mesh of l.userData.meshes) {
+      if ("emissiveIntensity" in mesh.material) {
+        mesh.material.emissiveIntensity = Math.max(mesh.material.emissiveIntensity, glow);
+      }
+    }
+  }
 
   if (clickPulseT < 1) {
     clickPulseT = Math.min(1, clickPulseT + 0.045);

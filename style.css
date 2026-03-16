@@ -46,6 +46,17 @@ body {
   backdrop-filter: blur(8px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.overlay-card::before {
+  content: "";
+  position: absolute;
+  inset: -120%;
+  background: conic-gradient(from 120deg, transparent 0deg, rgba(89, 240, 255, 0.32) 70deg, transparent 150deg);
+  animation: spin-glow 6.8s linear infinite;
+  pointer-events: none;
 }
 
 .overlay-card h1 {
@@ -72,8 +83,15 @@ body {
   color: #0a1224;
   background: linear-gradient(135deg, #67f4d0, var(--accent));
   cursor: pointer;
+  box-shadow: 0 10px 24px rgba(46, 211, 166, 0.28);
 }
 
 #start-btn.hidden {
   display: none;
+}
+
+@keyframes spin-glow {
+  to {
+    transform: rotate(1turn);
+  }
 }
