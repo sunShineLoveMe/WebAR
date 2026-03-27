@@ -70,6 +70,8 @@ body {
   color: var(--muted);
   font-size: 0.95rem;
   line-height: 1.4;
+  position: relative;
+  z-index: 1;
 }
 
 #start-btn {
@@ -84,10 +86,67 @@ body {
   background: linear-gradient(135deg, #67f4d0, var(--accent));
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(46, 211, 166, 0.28);
+  position: relative;
+  z-index: 1;
 }
 
 #start-btn.hidden {
   display: none;
+}
+
+.guide-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 1;
+}
+
+.guide-panel.hidden {
+  display: none;
+}
+
+.guide-label {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8bf0ff;
+}
+
+.question-list {
+  display: grid;
+  gap: 8px;
+}
+
+.question-chip {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(135, 240, 255, 0.22);
+  border-radius: 12px;
+  background: rgba(18, 37, 70, 0.72);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.question-chip[disabled] {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.guide-answer {
+  margin-top: 10px;
+  min-height: 72px;
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(8, 16, 34, 0.72);
+  color: #d8f5ff;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 @keyframes spin-glow {

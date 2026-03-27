@@ -162,21 +162,21 @@
 
 ### 12.1 本地启动
 
-在项目目录打开终端 1：
+如果只看静态 AR 画面，可以用静态服务器：
 
 ```bash
-cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
+cd "/Users/june/.codex/worktrees/ae65/AR3D_Model"
 python3 -m http.server 5173 --bind 0.0.0.0
 ```
 
-再开终端 2（HTTPS 给手机访问）：
+如果要联调 Kimi 语音导览，必须使用 Vercel 本地函数：
 
 ```bash
-cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
-./.bin/ngrok http 5173
+cd "/Users/june/.codex/worktrees/ae65/AR3D_Model"
+vercel dev
 ```
 
-复制终端输出的 `https://*.ngrok-free.app`，用手机打开。
+部署到 Vercel 后，直接使用 `https://<your-project>.vercel.app` 即可，无需 ngrok。
 
 ### 12.2 手机访问要求
 
@@ -196,18 +196,11 @@ cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
 推荐顺序：
 
 1. 关闭旧进程
-2. 重新启动本地服务
-3. 重新启动 ngrok
+2. 重新启动本地服务或 `vercel dev`
+3. 如果在线上联调，等待 Vercel 新部署完成
 4. 手机端强制刷新页面
 
 ### 12.4 常见问题
-
-- `ERR_NGROK_108`（超出会话数）
-
-```bash
-pkill -f ngrok || true
-./.bin/ngrok http 5173
-```
 
 - 端口被占用（Address already in use）
 
@@ -215,6 +208,53 @@ pkill -f ngrok || true
 lsof -ti:5173 | xargs kill -9 2>/dev/null || true
 python3 -m http.server 5173 --bind 0.0.0.0
 ```
+
+---
+
+## 14. AI 语音导览（Kimi）
+
+### 14.1 功能说明
+
+- 沪小宝支持“上海旅游限定”AI 导览问答
+- 手机界面展示 3 个预设问题，点击即可向 Kimi 发起请求
+- AI 回答会同时：
+  - 显示在界面文本区域
+  - 通过浏览器 `speechSynthesis` 用手机语音播报
+- 点击沪小宝本体，会先激活导览模式并播报一段引导语
+
+### 14.2 预设问题
+
+- `经典路线推荐`
+- `半天怎么玩`
+- `美食和夜游`
+
+### 14.3 提示词策略
+
+- 服务端使用限制性系统提示词
+- 只允许回答上海旅游相关内容：
+  - 景点
+  - 美食
+  - 交通
+  - 夜游
+  - 历史文化
+  - 游玩路线
+- 非上海旅游问题会被礼貌拒绝并引导回上海导览
+
+### 14.4 环境变量（Vercel）
+
+在 Vercel Project Settings -> Environment Variables 中配置：
+
+```bash
+LLM_API_KEY=your_kimi_key
+LLM_BASE_URL=https://api.moonshot.cn/v1
+LLM_MODEL_NAME=kimi-k2.5
+```
+
+说明：
+
+- 不要把 API Key 写进前端代码
+- 当前项目通过 `/api/kimi-guide` 服务端代理访问 Kimi
+- 浏览器端不会直接暴露密钥
 
 ---
 
@@ -308,6 +348,22 @@ python3 -m http.server 5173 --bind 0.0.0.0
   - 环球金融中心：主材质改为银色金属风
   - 上海中心：保留螺旋灯带并增强环绕粒子动态
 - 上海中心新增环绕粒子圈与环形光带的动态旋转动画
+
+### 2026-03-27 / Kimi 上海旅游语音导览
+
+- 新增服务端代理接口 `/api/kimi-guide`，通过 Vercel Function 调用 Kimi，避免前端暴露密钥
+- 新增限制性系统提示词：仅回答上海旅游相关内容，超出范围会回到上海导览
+- 新增 3 个手机端预设问题：
+  - 经典路线推荐
+  - 半天怎么玩
+  - 美食和夜游
+- 新增导览面板：显示问题按钮和 AI 回答文本
+- 点击沪小宝会激活语音导览模式，并播报引导语
+- 点击预设问题后：
+  - 向 Kimi 请求回答
+  - 在界面显示回答
+  - 用手机浏览器 `speechSynthesis` 播报答案
+- 新增 `vercel.json` 缓存控制，避免 `targets.mind` 与 API 响应被错误缓存
 
 ### 维护规则
 

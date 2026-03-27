@@ -5,13 +5,13 @@ import { MindARThree } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/min
 const container = document.querySelector("#ar-container");
 const statusText = document.querySelector("#status-text");
 const startButton = document.querySelector("#start-btn");
+const guidePanel = document.querySelector("#guide-panel");
+const guideAnswer = document.querySelector("#guide-answer");
+const questionButtons = Array.from(document.querySelectorAll(".question-chip"));
 
 const helloAudio = new Audio("./assets/hello.mp3");
-const introAudio = new Audio("./assets/intro.mp3");
 helloAudio.preload = "auto";
-introAudio.preload = "auto";
 helloAudio.volume = 0.82;
-introAudio.volume = 1.0;
 
 const STAGE = {
   IDLE: "idle",
@@ -34,8 +34,10 @@ let stageElapsed = 0;
 let targetVisible = false;
 let audioUnlocked = false;
 let helloPlayedThisRound = false;
-let introPlaying = false;
 let animationFrameId = null;
+let guideBusy = false;
+let guidePrimed = false;
+let lastGuideAnswer = "";
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -517,6 +519,33 @@ const setStatus = (text) => {
   statusText.textContent = text;
 };
 
+const setGuideBusy = (busy) => {
+  guideBusy = busy;
+  for (const btn of questionButtons) {
+    btn.disabled = busy;
+  }
+};
+
+const cancelSpeech = () => {
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+};
+
+const speakText = (text) => {
+  cancelSpeech();
+  if (!("speechSynthesis" in window) || !text) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "zh-CN";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  window.speechSynthesis.speak(utterance);
+};
+
+const showGuidePanel = () => {
+  guidePanel.classList.remove("hidden");
+};
+
 const createFireworkBurst = () => {
   const shapeTypes = ["sphere", "ring", "star"];
   const shape = shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
@@ -681,6 +710,7 @@ const switchStage = (nextStage) => {
 
   if (stage === STAGE.INTERACTIVE) {
     setStatus("上海已点亮，点击沪小宝开始讲解");
+    showGuidePanel();
     if (!helloPlayedThisRound) {
       helloPlayedThisRound = true;
       playHelloOnce();
@@ -743,10 +773,6 @@ const unlockAudioIfNeeded = async () => {
     helloAudio.pause();
     helloAudio.currentTime = 0;
 
-    await introAudio.play();
-    introAudio.pause();
-    introAudio.currentTime = 0;
-
     audioUnlocked = true;
   } catch (error) {
     console.warn("Audio unlock blocked:", error);
@@ -764,28 +790,19 @@ const playHelloOnce = async () => {
   }
 };
 
-const playIntro = async () => {
+const activateGuideMode = async () => {
   if (!targetVisible || (stage !== STAGE.INTERACTIVE && stage !== STAGE.CHARACTER_ENTRANCE)) return;
-  if (introPlaying) return;
-  if (!audioUnlocked) {
-    await unlockAudioIfNeeded();
-  }
-  if (!audioUnlocked) return;
-
-  helloAudio.pause();
-  helloAudio.currentTime = 0;
-
-  introPlaying = true;
-  setStatus("正在讲解上海亮点...");
+  showGuidePanel();
   clickPulseT = 0;
+  setStatus("请选择一个问题，听沪小宝介绍上海");
 
-  try {
-    introAudio.currentTime = 0;
-    await introAudio.play();
-  } catch (error) {
-    console.warn("intro.mp3 playback failed:", error);
-    introPlaying = false;
-    setStatus("上海已点亮，点击沪小宝开始讲解");
+  if (!guidePrimed) {
+    guidePrimed = true;
+    const intro = "你好，我是沪小宝。你可以点击下方问题，听我介绍上海的景点、美食和游玩路线。";
+    guideAnswer.textContent = intro;
+    speakText(intro);
+  } else if (lastGuideAnswer) {
+    speakText(lastGuideAnswer);
   }
 };
 
@@ -803,10 +820,38 @@ const getClientPoint = (event) => {
   return null;
 };
 
-introAudio.addEventListener("ended", () => {
-  introPlaying = false;
-  setStatus("上海已点亮，点击沪小宝开始讲解");
-});
+const askGuide = async (question) => {
+  if (!targetVisible || stage !== STAGE.INTERACTIVE) return;
+  showGuidePanel();
+  setGuideBusy(true);
+  setStatus("沪小宝正在整理上海导览...");
+  guideAnswer.textContent = "正在生成导览讲解，请稍候...";
+
+  try {
+    const response = await fetch("/api/kimi-guide", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Guide API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const answer = data.answer?.trim() || "暂时没有获得讲解内容，请稍后再试。";
+    lastGuideAnswer = answer;
+    guideAnswer.textContent = answer;
+    setStatus("上海导览已生成，正在语音播报");
+    speakText(answer);
+  } catch (error) {
+    console.error("Guide request failed", error);
+    guideAnswer.textContent = "导览服务暂时不可用，请稍后重试。";
+    setStatus("导览服务暂时不可用");
+  } finally {
+    setGuideBusy(false);
+  }
+};
 
 const onPointerDown = async (event) => {
   if (!targetVisible) return;
@@ -845,7 +890,7 @@ const onPointerDown = async (event) => {
 
   if (hit) {
     await unlockAudioIfNeeded();
-    await playIntro();
+    await activateGuideMode();
   }
 };
 renderer.domElement.addEventListener("pointerdown", onPointerDown);
@@ -856,12 +901,21 @@ renderer.domElement.addEventListener("touchstart", onTouchStart, { passive: true
 renderer.domElement.addEventListener("click", onPointerDown);
 window.addEventListener("pointerup", onPointerDown, { passive: true });
 
+for (const btn of questionButtons) {
+  btn.addEventListener("click", async () => {
+    await unlockAudioIfNeeded();
+    await askGuide(btn.dataset.question || "");
+  });
+}
+
 anchor.onTargetFound = () => {
   targetVisible = true;
   helloPlayedThisRound = false;
-  introPlaying = false;
-  introAudio.pause();
-  introAudio.currentTime = 0;
+  guidePrimed = false;
+  lastGuideAnswer = "";
+  guideAnswer.textContent = "点击沪小宝或下方问题，听沪小宝介绍上海。";
+  guidePanel.classList.add("hidden");
+  cancelSpeech();
 
   switchStage(STAGE.CITY_LIGHT_UP);
 };
@@ -870,10 +924,12 @@ anchor.onTargetLost = () => {
   targetVisible = false;
   stage = STAGE.IDLE;
   stageElapsed = 0;
-
-  introPlaying = false;
-  introAudio.pause();
-  introAudio.currentTime = 0;
+  guidePrimed = false;
+  lastGuideAnswer = "";
+  guidePanel.classList.add("hidden");
+  guideAnswer.textContent = "点击沪小宝或下方问题，听沪小宝介绍上海。";
+  setGuideBusy(false);
+  cancelSpeech();
 
   cityRoot.visible = false;
   fireworksRoot.visible = false;
@@ -1076,7 +1132,7 @@ window.addEventListener("beforeunload", () => {
   renderer.domElement.removeEventListener("touchstart", onTouchStart);
   renderer.domElement.removeEventListener("click", onPointerDown);
   window.removeEventListener("pointerup", onPointerDown);
-  introAudio.pause();
+  cancelSpeech();
   helloAudio.pause();
   mindARThree.stop();
   mindARThree.renderer.dispose();
