@@ -1,30 +1,25 @@
-# Notes: Cloud TTS Upgrade
+# Notes: Single-Turn Voice Guide
 
-## Current State
+## Scope
 
-- Kimi text generation works through `/api/kimi-guide`.
-- Spoken output currently uses browser `speechSynthesis`, which sounds mechanical.
-- The project is deployed on Vercel and already has serverless API routes.
+- Add a microphone entry point to ask Hu Xiaobao a spoken question.
+- Do not add multi-turn conversation memory.
+- Keep the existing preset questions.
+- Keep Shanghai-tourism-only behavior.
 
-## Provider Choice
+## UX Plan
 
-- Chosen provider for this implementation: `node-edge-tts`
-- Reason:
-  - no API key required
-  - can synthesize higher-quality neural voices than browser speech
-  - can run inside Node-based server routes
-  - MP3 output is available for Safari playback
-- Tradeoff:
-  - this is suitable for free testing and demos, but not the ideal long-term commercial-grade provider
+- Add a prominent voice button in the guide panel.
+- Button states:
+  - idle: click to ask by voice
+  - listening: prompt the user to speak
+  - processing: transcribing / generating answer
+- Show the recognized text in the answer panel before the Kimi answer if useful.
+- If the browser does not support speech recognition, explain that clearly and keep preset questions available.
 
-## Front-end Plan
+## Technical Plan
 
-- Keep Kimi request flow unchanged.
-- After receiving Kimi answer text, request `/api/tts`.
-- Play returned MP3 with a dedicated `Audio` instance.
-- If cloud TTS fails, fall back to browser `speechSynthesis`.
-
-## Deployment Notes
-
-- Add `package.json` dependency so Vercel can bundle the TTS package.
-- Optionally allow environment overrides for voice/rate/pitch.
+- Use `window.SpeechRecognition || window.webkitSpeechRecognition`.
+- Configure it for `zh-CN`, single final result.
+- Pipe the transcript into the same `askGuide()` flow already used by preset questions.
+- Keep the existing service-side TTS playback path unchanged.

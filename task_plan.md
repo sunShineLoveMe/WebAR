@@ -1,26 +1,26 @@
-# Task Plan: Cloud TTS Upgrade for Hu Xiaobao
+# Task Plan: Single-Turn Voice Guide for Hu Xiaobao
 
 ## Goal
-Replace browser-only speech with a cloud-generated TTS playback path for Hu Xiaobao's Shanghai guide answers, using a free provider suitable for testing and documenting the setup.
+Add a stable single-turn voice-question flow for Hu Xiaobao, limited to Shanghai tourism, without introducing multi-turn chat state.
 
 ## Phases
-- [x] Phase 1: Review current Kimi + browser speech flow and deployment constraints
-- [x] Phase 2: Choose a free TTS provider and define integration approach
-- [x] Phase 3: Implement server TTS proxy and front-end audio playback
+- [x] Phase 1: Review current Kimi + TTS flow and decide the stable voice-input scope
+- [x] Phase 2: Add voice-input UI and browser speech recognition flow
+- [x] Phase 3: Connect recognized text into the existing Kimi + TTS guide pipeline
 - [x] Phase 4: Update README and verify behavior
 
 ## Key Questions
-1. Which free TTS option can be integrated into the current Vercel-based architecture with the least friction?
-2. How should the app behave when cloud TTS fails on a device or network?
+1. How to add voice questioning without making the interaction unstable?
+2. How should unsupported browsers fail gracefully?
 
 ## Decisions Made
-- Use a server-side free TTS path instead of browser-only speech to improve voice quality.
-- Keep browser `speechSynthesis` as a fallback so testing is resilient.
-- Prefer MP3 output for mobile Safari compatibility.
-- Use `node-edge-tts` for the current free implementation because it is MIT-licensed and works without an API key.
+- Keep the interaction single-turn only; no multi-turn memory.
+- Keep the topic restricted to Shanghai tourism through the existing system prompt.
+- Use browser speech recognition where available, with clear unsupported-state messaging.
+- Reuse the existing Kimi and server-side TTS pipeline after transcription.
 
 ## Errors Encountered
 - None
 
 ## Status
-**Completed** - Free server-side TTS playback has replaced the browser-only speech path, with browser fallback retained.
+**Completed** - Stable single-turn voice questioning is connected to the existing Kimi + TTS guide flow.

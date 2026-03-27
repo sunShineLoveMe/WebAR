@@ -114,6 +114,39 @@ body {
   color: #8bf0ff;
 }
 
+.voice-btn {
+  width: 100%;
+  border: 1px solid rgba(135, 240, 255, 0.28);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(40, 84, 150, 0.9), rgba(34, 154, 180, 0.86));
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.35;
+  padding: 12px 14px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 10px 24px rgba(42, 170, 220, 0.18);
+}
+
+.voice-btn.listening {
+  background: linear-gradient(135deg, rgba(202, 71, 117, 0.96), rgba(255, 118, 90, 0.92));
+  box-shadow: 0 0 28px rgba(255, 114, 118, 0.42);
+}
+
+.voice-btn.unsupported {
+  opacity: 0.58;
+  cursor: not-allowed;
+  background: rgba(35, 52, 82, 0.9);
+  box-shadow: none;
+}
+
+.voice-hint {
+  margin: 8px 0 10px;
+  color: #9ec8de;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
 .question-list {
   display: grid;
   gap: 8px;

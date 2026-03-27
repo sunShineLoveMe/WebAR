@@ -7,6 +7,8 @@ const statusText = document.querySelector("#status-text");
 const startButton = document.querySelector("#start-btn");
 const guidePanel = document.querySelector("#guide-panel");
 const guideAnswer = document.querySelector("#guide-answer");
+const voiceButton = document.querySelector("#voice-btn");
+const voiceHint = document.querySelector("#voice-hint");
 const questionButtons = Array.from(document.querySelectorAll(".question-chip"));
 
 const helloAudio = new Audio("./assets/hello.mp3");
@@ -44,6 +46,9 @@ let guidePrimed = false;
 let lastGuideAnswer = "";
 let guideAudioUrl = "";
 let guideSpeechToken = 0;
+let voiceSupported = false;
+let voiceListening = false;
+let recognition;
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -530,6 +535,26 @@ const setGuideBusy = (busy) => {
   for (const btn of questionButtons) {
     btn.disabled = busy;
   }
+  if (voiceButton) {
+    voiceButton.disabled = busy || !voiceSupported;
+  }
+};
+
+const updateVoiceUi = ({ listening = voiceListening, hint } = {}) => {
+  if (!voiceButton || !voiceHint) return;
+
+  voiceListening = listening;
+  voiceButton.classList.toggle("listening", listening);
+  voiceButton.classList.toggle("unsupported", !voiceSupported);
+
+  if (!voiceSupported) {
+    voiceButton.textContent = "当前浏览器不支持语音提问";
+    voiceHint.textContent = "请继续使用下方预设问题，或改用支持语音识别的浏览器。";
+    return;
+  }
+
+  voiceButton.textContent = listening ? "正在听你说话..." : "点击语音提问";
+  voiceHint.textContent = hint || (listening ? "请直接说出上海旅游相关问题" : "你也可以直接问：上海哪里最值得去？");
 };
 
 const cancelSpeech = () => {
@@ -589,6 +614,55 @@ const speakWithTts = async (text) => {
 
 const showGuidePanel = () => {
   guidePanel.classList.remove("hidden");
+};
+
+const initVoiceRecognition = () => {
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognitionCtor) {
+    voiceSupported = false;
+    updateVoiceUi();
+    return;
+  }
+
+  voiceSupported = true;
+  recognition = new SpeechRecognitionCtor();
+  recognition.lang = "zh-CN";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    updateVoiceUi({ listening: true, hint: "请说出一个上海旅游相关问题" });
+    guideAnswer.textContent = "正在听你说话，请直接提问...";
+    setStatus("沪小宝正在听你提问");
+  };
+
+  recognition.onresult = async (event) => {
+    const transcript = String(event.results?.[0]?.[0]?.transcript || "").trim();
+    updateVoiceUi({ listening: false, hint: "语音识别完成，正在生成导览讲解" });
+
+    if (!transcript) {
+      guideAnswer.textContent = "没有听清你的问题，请再说一次，或直接点击预设问题。";
+      setStatus("没有听清问题");
+      return;
+    }
+
+    guideAnswer.textContent = `你刚刚问的是：${transcript}`;
+    await askGuide(transcript);
+  };
+
+  recognition.onerror = (event) => {
+    updateVoiceUi({ listening: false, hint: "语音提问失败，请重试或点击预设问题" });
+    const errorLabel = event?.error ? `语音识别失败：${event.error}` : "语音识别失败，请重试";
+    guideAnswer.textContent = errorLabel;
+    setStatus("语音识别失败");
+  };
+
+  recognition.onend = () => {
+    updateVoiceUi({ listening: false });
+  };
+
+  updateVoiceUi();
 };
 
 const createFireworkBurst = () => {
@@ -874,6 +948,9 @@ const getClientPoint = (event) => {
 const askGuide = async (question) => {
   if (!targetVisible || stage !== STAGE.INTERACTIVE) return;
   showGuidePanel();
+  if (recognition && voiceListening) {
+    recognition.stop();
+  }
   setGuideBusy(true);
   setStatus("沪小宝正在整理上海导览...");
   guideAnswer.textContent = "正在生成导览讲解，请稍候...";
@@ -961,6 +1038,37 @@ for (const btn of questionButtons) {
   });
 }
 
+if (voiceButton) {
+  voiceButton.addEventListener("click", async () => {
+    await unlockAudioIfNeeded();
+    showGuidePanel();
+
+    if (!voiceSupported || !recognition) {
+      updateVoiceUi();
+      return;
+    }
+
+    if (!targetVisible || stage !== STAGE.INTERACTIVE) {
+      guideAnswer.textContent = "请先扫描目标图并等待沪小宝进入可互动状态。";
+      setStatus("请先进入互动状态");
+      return;
+    }
+
+    if (guideBusy) return;
+
+    try {
+      cancelSpeech();
+      recognition.abort();
+    } catch {
+      // ignore recognition reset errors
+    }
+
+    recognition.start();
+  });
+}
+
+initVoiceRecognition();
+
 anchor.onTargetFound = () => {
   targetVisible = true;
   helloPlayedThisRound = false;
@@ -968,6 +1076,7 @@ anchor.onTargetFound = () => {
   lastGuideAnswer = "";
   guideAnswer.textContent = "点击沪小宝或下方问题，听沪小宝介绍上海。";
   guidePanel.classList.add("hidden");
+  updateVoiceUi({ listening: false, hint: "你也可以直接问：上海哪里最值得去？" });
   cancelSpeech();
 
   switchStage(STAGE.CITY_LIGHT_UP);
@@ -982,6 +1091,10 @@ anchor.onTargetLost = () => {
   guidePanel.classList.add("hidden");
   guideAnswer.textContent = "点击沪小宝或下方问题，听沪小宝介绍上海。";
   setGuideBusy(false);
+  if (recognition && voiceListening) {
+    recognition.stop();
+  }
+  updateVoiceUi({ listening: false, hint: "你也可以直接问：上海哪里最值得去？" });
   cancelSpeech();
 
   cityRoot.visible = false;
