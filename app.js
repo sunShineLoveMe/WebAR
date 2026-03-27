@@ -834,11 +834,13 @@ const askGuide = async (question) => {
       body: JSON.stringify({ question })
     });
 
+    const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      throw new Error(`Guide API error: ${response.status}`);
+      const detail = [data.error, data.details].filter(Boolean).join(": ");
+      throw new Error(detail || `Guide API error: ${response.status}`);
     }
 
-    const data = await response.json();
     const answer = data.answer?.trim() || "暂时没有获得讲解内容，请稍后再试。";
     lastGuideAnswer = answer;
     guideAnswer.textContent = answer;
@@ -846,7 +848,7 @@ const askGuide = async (question) => {
     speakText(answer);
   } catch (error) {
     console.error("Guide request failed", error);
-    guideAnswer.textContent = "导览服务暂时不可用，请稍后重试。";
+    guideAnswer.textContent = `导览服务暂时不可用：${error instanceof Error ? error.message : "请稍后重试"}`;
     setStatus("导览服务暂时不可用");
   } finally {
     setGuideBusy(false);

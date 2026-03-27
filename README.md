@@ -252,6 +252,9 @@ LLM_MODEL_NAME=kimi-k2.5
 
 说明：
 
+- `LLM_API_KEY` 必填
+- `LLM_BASE_URL` 可留空，默认回落到 `https://api.moonshot.cn/v1`
+- `LLM_MODEL_NAME` 可留空，服务端会依次尝试 `kimi-k2.5`、`moonshotai/Kimi-K2.5`、`kimi-k2`、`moonshot-v1-8k`
 - 不要把 API Key 写进前端代码
 - 当前项目通过 `/api/kimi-guide` 服务端代理访问 Kimi
 - 浏览器端不会直接暴露密钥
@@ -352,6 +355,7 @@ LLM_MODEL_NAME=kimi-k2.5
 ### 2026-03-27 / Kimi 上海旅游语音导览
 
 - 新增服务端代理接口 `/api/kimi-guide`，通过 Vercel Function 调用 Kimi，避免前端暴露密钥
+- 修复 Kimi 默认环境变量兜底：只配置 `LLM_API_KEY` 也可工作，默认补全 Moonshot base URL，并在未指定模型时自动尝试多组兼容模型名
 - 新增限制性系统提示词：仅回答上海旅游相关内容，超出范围会回到上海导览
 - 新增 3 个手机端预设问题：
   - 经典路线推荐
