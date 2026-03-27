@@ -13,6 +13,10 @@ const helloAudio = new Audio("./assets/hello.mp3");
 helloAudio.preload = "auto";
 helloAudio.volume = 0.82;
 
+const guideAudio = new Audio();
+guideAudio.preload = "none";
+guideAudio.volume = 1;
+
 const STAGE = {
   IDLE: "idle",
   CITY_LIGHT_UP: "city_light_up",
@@ -38,6 +42,8 @@ let animationFrameId = null;
 let guideBusy = false;
 let guidePrimed = false;
 let lastGuideAnswer = "";
+let guideAudioUrl = "";
+let guideSpeechToken = 0;
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -527,6 +533,13 @@ const setGuideBusy = (busy) => {
 };
 
 const cancelSpeech = () => {
+  guideSpeechToken += 1;
+  guideAudio.pause();
+  guideAudio.currentTime = 0;
+  if (guideAudioUrl) {
+    URL.revokeObjectURL(guideAudioUrl);
+    guideAudioUrl = "";
+  }
   if ("speechSynthesis" in window) {
     window.speechSynthesis.cancel();
   }
@@ -540,6 +553,38 @@ const speakText = (text) => {
   utterance.rate = 1;
   utterance.pitch = 1;
   window.speechSynthesis.speak(utterance);
+};
+
+const speakWithTts = async (text) => {
+  const token = ++guideSpeechToken;
+  cancelSpeech();
+  guideSpeechToken = token;
+
+  try {
+    const response = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const detail = [data.error, data.details].filter(Boolean).join(": ");
+      throw new Error(detail || `TTS API error: ${response.status}`);
+    }
+
+    const audioBlob = await response.blob();
+    if (token !== guideSpeechToken) return;
+
+    guideAudioUrl = URL.createObjectURL(audioBlob);
+    guideAudio.src = guideAudioUrl;
+    await guideAudio.play();
+  } catch (error) {
+    console.warn("Cloud TTS failed, falling back to browser speech:", error);
+    if (token === guideSpeechToken) {
+      speakText(text);
+    }
+  }
 };
 
 const showGuidePanel = () => {
@@ -772,6 +817,12 @@ const unlockAudioIfNeeded = async () => {
     await helloAudio.play();
     helloAudio.pause();
     helloAudio.currentTime = 0;
+    guideAudio.src = helloAudio.currentSrc || helloAudio.src;
+    await guideAudio.play();
+    guideAudio.pause();
+    guideAudio.currentTime = 0;
+    guideAudio.removeAttribute("src");
+    guideAudio.load();
 
     audioUnlocked = true;
   } catch (error) {
@@ -800,9 +851,9 @@ const activateGuideMode = async () => {
     guidePrimed = true;
     const intro = "你好，我是沪小宝。你可以点击下方问题，听我介绍上海的景点、美食和游玩路线。";
     guideAnswer.textContent = intro;
-    speakText(intro);
+    await speakWithTts(intro);
   } else if (lastGuideAnswer) {
-    speakText(lastGuideAnswer);
+    await speakWithTts(lastGuideAnswer);
   }
 };
 
@@ -845,7 +896,7 @@ const askGuide = async (question) => {
     lastGuideAnswer = answer;
     guideAnswer.textContent = answer;
     setStatus("上海导览已生成，正在语音播报");
-    speakText(answer);
+    await speakWithTts(answer);
   } catch (error) {
     console.error("Guide request failed", error);
     guideAnswer.textContent = `导览服务暂时不可用：${error instanceof Error ? error.message : "请稍后重试"}`;

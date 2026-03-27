@@ -165,14 +165,16 @@
 如果只看静态 AR 画面，可以用静态服务器：
 
 ```bash
-cd "/Users/june/.codex/worktrees/ae65/AR3D_Model"
+cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
+npm install
 python3 -m http.server 5173 --bind 0.0.0.0
 ```
 
 如果要联调 Kimi 语音导览，必须使用 Vercel 本地函数：
 
 ```bash
-cd "/Users/june/.codex/worktrees/ae65/AR3D_Model"
+cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
+npm install
 vercel dev
 ```
 
@@ -190,6 +192,7 @@ vercel dev
 以下情况建议重启服务并刷新页面：
 
 - 修改了 `app.js` / `index.html` / `style.css`
+- 修改了 `api/*.js` / `package.json`
 - 替换了 `assets/targets.mind`
 - 隧道地址过期或无法访问
 
@@ -219,7 +222,8 @@ python3 -m http.server 5173 --bind 0.0.0.0
 - 手机界面展示 3 个预设问题，点击即可向 Kimi 发起请求
 - AI 回答会同时：
   - 显示在界面文本区域
-  - 通过浏览器 `speechSynthesis` 用手机语音播报
+  - 优先通过服务端 TTS 合成 MP3 后播放
+  - 当服务端 TTS 失败时，回退到浏览器 `speechSynthesis`
 - 点击沪小宝本体，会先激活导览模式并播报一段引导语
 
 ### 14.2 预设问题
@@ -258,6 +262,35 @@ LLM_MODEL_NAME=kimi-k2.5
 - 不要把 API Key 写进前端代码
 - 当前项目通过 `/api/kimi-guide` 服务端代理访问 Kimi
 - 浏览器端不会直接暴露密钥
+
+### 14.5 方案 B 当前实现（免费 TTS）
+
+- 当前已按方案 B 落地：`Kimi 文本生成 + 服务端 TTS 音频播放`
+- TTS 提供方采用 `node-edge-tts`
+- 默认声音：`zh-CN-XiaoxiaoNeural`
+- 默认输出：`audio/mpeg`
+- 当前定位：
+  - 适合免费测试
+  - 适合 Demo 和验收
+  - 不作为最终商用高稳定性方案
+
+可选环境变量：
+
+```bash
+TTS_VOICE=zh-CN-XiaoxiaoNeural
+TTS_LANG=zh-CN
+TTS_RATE=+0%
+TTS_PITCH=+0Hz
+TTS_VOLUME=+0%
+TTS_OUTPUT_FORMAT=audio-24khz-48kbitrate-mono-mp3
+```
+
+说明：
+
+- 上述 TTS 变量全部可留空
+- 留空时会使用默认中文女声
+- 若你后续要测试其他声音，只需在 Vercel 修改 `TTS_VOICE`
+- 当前新增服务端接口：`/api/tts`
 
 ---
 
@@ -368,6 +401,17 @@ LLM_MODEL_NAME=kimi-k2.5
   - 在界面显示回答
   - 用手机浏览器 `speechSynthesis` 播报答案
 - 新增 `vercel.json` 缓存控制，避免 `targets.mind` 与 API 响应被错误缓存
+
+### 2026-03-27 / 方案 B 落地：免费服务端 TTS 音频播放
+
+- 新增 `package.json` 与 `node-edge-tts` 依赖，支持在 Vercel Serverless 中合成音频
+- 新增服务端接口 `/api/tts`：
+  - 接收文本
+  - 服务端合成 MP3
+  - 前端直接播放音频
+- 预设问题与沪小宝引导语，现已优先走服务端 TTS，不再只依赖浏览器原生语音
+- 保留浏览器 `speechSynthesis` 兜底，确保测试时即使 TTS 失败也不至于完全静音
+- 默认语音调整为更自然的中文女声，移动端听感优于原生朗读
 
 ### 维护规则
 

@@ -1,26 +1,26 @@
-# Task Plan: Kimi Shanghai Voice Guide
+# Task Plan: Cloud TTS Upgrade for Hu Xiaobao
 
 ## Goal
-Add Shanghai-only Kimi voice Q&A to the Hu Xiaobao WebAR demo with preset questions and mobile speech output.
+Replace browser-only speech with a cloud-generated TTS playback path for Hu Xiaobao's Shanghai guide answers, using a free provider suitable for testing and documenting the setup.
 
 ## Phases
-- [x] Phase 1: Inspect current app structure and constraints
-- [x] Phase 2: Define implementation approach and prompt strategy
-- [x] Phase 3: Implement server proxy and front-end interaction UI
+- [x] Phase 1: Review current Kimi + browser speech flow and deployment constraints
+- [x] Phase 2: Choose a free TTS provider and define integration approach
+- [x] Phase 3: Implement server TTS proxy and front-end audio playback
 - [x] Phase 4: Update README and verify behavior
 
 ## Key Questions
-1. How to avoid exposing the Kimi API key to the browser?
-2. How should Hu Xiaobao trigger the guided Q&A flow?
+1. Which free TTS option can be integrated into the current Vercel-based architecture with the least friction?
+2. How should the app behave when cloud TTS fails on a device or network?
 
 ## Decisions Made
-- Use a Vercel serverless API route to proxy Kimi requests: keeps the API key server-side.
-- Use a restrictive system prompt: Shanghai tourism only, concise mobile-friendly answers.
-- Use three preset questions in the mobile UI: lower input friction and improve demo stability.
-- Use browser `speechSynthesis` for spoken responses: avoids adding another TTS service dependency.
+- Use a server-side free TTS path instead of browser-only speech to improve voice quality.
+- Keep browser `speechSynthesis` as a fallback so testing is resilient.
+- Prefer MP3 output for mobile Safari compatibility.
+- Use `node-edge-tts` for the current free implementation because it is MIT-licensed and works without an API key.
 
 ## Errors Encountered
-- None yet
+- None
 
 ## Status
-**Completed** - Kimi guide proxy, preset-question UI, speech output, and README documentation are in place.
+**Completed** - Free server-side TTS playback has replaced the browser-only speech path, with browser fallback retained.

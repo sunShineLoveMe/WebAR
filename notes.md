@@ -1,32 +1,30 @@
-# Notes: Kimi Shanghai Guide Integration
+# Notes: Cloud TTS Upgrade
 
-## Implementation Outline
+## Current State
 
-- Front end:
-  - Show three preset question buttons in the overlay.
-  - Gate buttons until the AR scene reaches the interactive phase.
-  - Clicking Hu Xiaobao should prime the Q&A flow and speak a local guide prompt.
-  - Clicking a preset question should call a local `/api/kimi-guide` endpoint.
-  - Use `speechSynthesis` for mobile voice output of the returned answer.
+- Kimi text generation works through `/api/kimi-guide`.
+- Spoken output currently uses browser `speechSynthesis`, which sounds mechanical.
+- The project is deployed on Vercel and already has serverless API routes.
 
-- Back end:
-  - Add `api/kimi-guide.js` for Vercel.
-  - Read credentials from env vars:
-    - `LLM_API_KEY`
-    - `LLM_BASE_URL`
-    - `LLM_MODEL_NAME`
-  - Use an OpenAI-compatible `chat/completions` request to Moonshot/Kimi.
+## Provider Choice
 
-## Prompt Strategy
+- Chosen provider for this implementation: `node-edge-tts`
+- Reason:
+  - no API key required
+  - can synthesize higher-quality neural voices than browser speech
+  - can run inside Node-based server routes
+  - MP3 output is available for Safari playback
+- Tradeoff:
+  - this is suitable for free testing and demos, but not the ideal long-term commercial-grade provider
 
-- System prompt:
-  - Role: Shanghai tourism guide embodied as Hu Xiaobao.
-  - Scope: Shanghai attractions, food, transport, routes, history, city experience.
-  - Reject off-topic questions and redirect back to Shanghai travel.
-  - Keep answers concise and spoken-language friendly.
+## Front-end Plan
 
-## UX Notes
+- Keep Kimi request flow unchanged.
+- After receiving Kimi answer text, request `/api/tts`.
+- Play returned MP3 with a dedicated `Audio` instance.
+- If cloud TTS fails, fall back to browser `speechSynthesis`.
 
-- The preset questions should remain visible on mobile once AR is interactive.
-- Hu Xiaobao click should not alter the character material anymore.
-- Answer text should also be visible on screen, not only spoken.
+## Deployment Notes
+
+- Add `package.json` dependency so Vercel can bundle the TTS package.
+- Optionally allow environment overrides for voice/rate/pitch.
