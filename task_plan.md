@@ -1,26 +1,26 @@
-# Task Plan: Single-Turn Voice Guide for Hu Xiaobao
+# Task Plan: Minimal Voice Guide UI Cleanup
 
 ## Goal
-Add a stable single-turn voice-question flow for Hu Xiaobao, limited to Shanghai tourism, without introducing multi-turn chat state.
+Hide visible AI answer text, move the voice-question button to the bottom, and simplify the overlay so it obstructs the AR scene as little as possible.
 
 ## Phases
-- [x] Phase 1: Review current Kimi + TTS flow and decide the stable voice-input scope
-- [x] Phase 2: Add voice-input UI and browser speech recognition flow
-- [x] Phase 3: Connect recognized text into the existing Kimi + TTS guide pipeline
-- [x] Phase 4: Update README and verify behavior
+- [x] Phase 1: Review current guide UI structure and identify obstructive elements
+- [x] Phase 2: Simplify markup and styles for a cleaner low-obstruction overlay
+- [x] Phase 3: Adjust app logic so answers are spoken without being visibly rendered
+- [x] Phase 4: Update README and verify the UI behavior
 
 ## Key Questions
-1. How to add voice questioning without making the interaction unstable?
-2. How should unsupported browsers fail gracefully?
+1. Which UI elements are essential for the experience and which should be visually removed?
+2. How can status feedback remain clear without covering the AR content?
 
 ## Decisions Made
-- Keep the interaction single-turn only; no multi-turn memory.
-- Keep the topic restricted to Shanghai tourism through the existing system prompt.
-- Use browser speech recognition where available, with clear unsupported-state messaging.
-- Reuse the existing Kimi and server-side TTS pipeline after transcription.
+- Keep preset question buttons visible because they are still a primary interaction path.
+- Hide the long AI text block from the visible UI while preserving internal state.
+- Place the voice button last in the panel so it sits at the bottom.
+- Reduce card footprint and visual weight to avoid blocking the 3D scene.
 
 ## Errors Encountered
 - None
 
 ## Status
-**Completed** - Stable single-turn voice questioning is connected to the existing Kimi + TTS guide flow.
+**Completed** - The guide UI is now voice-first, less obstructive, and no longer shows long visible AI answer text.

@@ -1,25 +1,22 @@
-# Notes: Single-Turn Voice Guide
+# Notes: Minimal Voice Guide UI Cleanup
 
-## Scope
+## Requested UI Changes
 
-- Add a microphone entry point to ask Hu Xiaobao a spoken question.
-- Do not add multi-turn conversation memory.
-- Keep the existing preset questions.
-- Keep Shanghai-tourism-only behavior.
+- Do not show the full AI answer text on screen.
+- Voice output should remain active.
+- Move the voice-question button to the bottom of the interaction area.
+- Make the whole overlay cleaner and less obstructive to the AR scene.
 
-## UX Plan
+## UI Plan
 
-- Add a prominent voice button in the guide panel.
-- Button states:
-  - idle: click to ask by voice
-  - listening: prompt the user to speak
-  - processing: transcribing / generating answer
-- Show the recognized text in the answer panel before the Kimi answer if useful.
-- If the browser does not support speech recognition, explain that clearly and keep preset questions available.
+- Keep a small floating card near the bottom.
+- Keep title and status text compact.
+- Keep preset question buttons as the main visible controls.
+- Move the voice button below the preset buttons.
+- Hide the answer area from view using CSS and keep it only as an internal state container.
 
-## Technical Plan
+## Logic Plan
 
-- Use `window.SpeechRecognition || window.webkitSpeechRecognition`.
-- Configure it for `zh-CN`, single final result.
-- Pipe the transcript into the same `askGuide()` flow already used by preset questions.
-- Keep the existing service-side TTS playback path unchanged.
+- Continue storing `lastGuideAnswer` for replay and audio flow.
+- Stop writing large visible answer text into the main card.
+- Use short status / hint text instead of long answer paragraphs.
