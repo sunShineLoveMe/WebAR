@@ -1,460 +1,251 @@
-# 沪小宝 WebAR 炫酷特效版（需求确认文档）
+# Stickman WebAR Demo
 
-## 1. 项目目标
+## Overview
 
-面向旅游展示场景，构建一个“高冲击力、可传播”的移动端 WebAR 体验。用户扫描图片目标后，按照以下主流程演出：
+This branch is rebuilt as a stickman-focused WebAR demo on the original stack:
 
-1. 城市亮起（环境特效阶段）
-2. 沪小宝出现（角色登场阶段）
-3. 点击角色（交互触发阶段）
-4. 播放讲解（内容传播阶段）
+- JavaScript
+- Three.js
+- MindAR image tracking
+- GLTFLoader
+- WebGL
+- ES modules
 
-> 本文档仅用于需求确认，不包含实现细节代码。
+Current demo flow:
 
----
+1. Open the page on a mobile browser with camera permission.
+2. Tap `启动 AR`.
+3. Scan the configured image target.
+4. The stickman appears above the target with a reveal effect.
+5. The stickman auto-plays the greeting action once.
+6. The user can then trigger either:
+   - `打招呼`
+   - `跳舞`
+7. The user can also use voice input.
+   - Browser speech recognition captures the sentence.
+   - The transcript is sent to Kimi for intent classification.
+   - Kimi maps the sentence to a fixed action ID.
+   - If Kimi is unavailable, the frontend falls back to local keyword mapping.
 
-## 2. 目标用户与使用场景
+This is deliberately a controlled action-demo architecture, not a free-form chat agent.
 
-- 目标用户：线下展会观众、文旅推介会观众、城市宣传活动参与者
-- 使用设备：iOS Safari / Android Chrome（移动端）
-- 使用方式：扫描印刷物或屏幕上的图片目标，观看 AR 表演并点击互动
+## Project Structure
 
----
+```text
+project/
+├─ api/
+│  └─ intent.js
+├─ index.html
+├─ app.js
+├─ style.css
+├─ vercel.json
+├─ assets/
+│  ├─ greeting_scale.glb
+│  ├─ dancing_scale.glb
+│  ├─ target-image.png
+│  └─ targets.mind
+└─ README.md
+```
 
-## 3. 核心体验流程（必须满足）
+## How To Run
 
-### 阶段 A：扫描等待
-
-- 页面引导文案：`扫描图片，点亮上海`
-- 视觉状态：相机画面 + 微弱粒子待机效果（低强度）
-
-### 阶段 B：城市亮起（重点特效）
-
-目标图识别后立即触发“城市点亮”演出，要求有明显“从静到燃”的冲击感：
-
-- 地面/城市轮廓光扫过（Light Sweep）
-- 建筑窗口逐步点亮（从少到多）
-- 环境粒子增强（火花/流光）
-- 可见短时光晕脉冲（Bloom Pulse）
-
-预期感受：用户第一眼就能感到“场景被激活”。
-
-### 阶段 C：沪小宝出现（角色登场）
-
-在“城市亮起”后衔接角色出场，要求“有仪式感”：
-
-- 登场方式：传送门/光柱中出现（非直接瞬间出现）
-- 角色动画：浮动 + 缓慢旋转 + 呼吸感微动
-- 出场音效：欢迎语音（Hello）仅首次完整播放一次
-
-### 阶段 D：点击角色 → 播放讲解
-
-- 用户点击角色后触发讲解语音（Intro）
-- 点击反馈必须明显：
-  - 角色高亮闪烁（短时）
-  - 环形冲击波或发光圈扩散（短时）
-- 语音播放期间角色保持轻微动态，不可“僵住”
-
----
-
-## 4. 视觉与特效要求（炫酷版）
-
-### 4.1 视觉风格关键词
-
-`未来都市`、`霓虹能量`、`科技感`、`高对比`、`节奏感`
-
-### 4.2 特效清单（目标）
-
-- 城市点亮序列（分层点亮，而非单一亮度变化）
-- 光扫特效（至少一次完整扫光）
-- 环境粒子（低配设备自动降级）
-- 角色登场特效（传送门/光柱）
-- 点击反馈特效（高亮 + 冲击波）
-- 轻度后期观感增强（如 Bloom 风格效果）
-
-### 4.3 动效节奏建议
-
-- 识别后 0.0s - 1.2s：城市亮起
-- 1.2s - 2.0s：沪小宝登场
-- 2.0s 之后：可点击并触发讲解
-
----
-
-## 5. 音频体验要求
-
-- 欢迎语音：识别成功后触发一次
-- 讲解语音：点击角色触发，可重复播放
-- 音频策略：必须适配移动端手势授权策略
-- 音量策略：欢迎音量 < 讲解音量（避免开场过猛）
-
----
-
-## 6. 交互与文案
-
-### 6.1 状态文案
-
-- 未识别：`扫描图片，点亮上海`
-- 已识别：`上海已点亮，点击沪小宝开始讲解`
-- 讲解中：`正在讲解上海亮点...`
-
-### 6.2 交互要求
-
-- 点击命中需准确（角色本体可点）
-- 连续点击防抖：避免音频重叠爆音
-- 丢失目标后：特效和角色平滑退场，回到等待态
-
----
-
-## 7. 性能与兼容性目标
-
-- 首要平台：iOS Safari、Android Chrome
-- 目标帧率：主流机型保持流畅（优先稳定 > 极限画质）
-- 降级策略：
-  - 低端机自动降低粒子数
-  - 可关闭高开销后期特效
-
----
-
-## 8. 验收标准（客户确认用）
-
-满足以下条目即视为“需求达标”：
-
-1. 扫描目标后，先看到“城市亮起”再看到“沪小宝出现”
-2. 角色登场具有明显仪式感（非突兀出现）
-3. 点击角色有强反馈，并触发讲解语音
-4. 全流程视觉风格“炫酷、科技感强”，不显得平淡
-5. 移动端可稳定演示，不频繁卡顿或失效
-
----
-
-## 9. 本轮不包含内容（边界）
-
-- 不包含后台 CMS 管理
-- 不包含多角色切换系统
-- 不包含多目标联动剧情
-- 不包含完整数据埋点平台接入
-
----
-
-## 10. 待你确认的关键问题
-
-请你确认以下事项，确认后我再开始实现：
-
-1. 城市亮起风格偏好：`写实夜景` 还是 `科幻霓虹`？
-2. 沪小宝登场风格：`光柱召唤` 还是 `能量传送门`？
-3. 讲解长度：约 `15秒` / `30秒` / `60秒`？
-4. 是否需要背景音乐（BGM）常驻？
-5. 客户更看重：`极致效果` 还是 `弱机兼容稳定`？
-
----
-
-## 11. 下一步
-
-你确认本 README 需求后，我将进入实现阶段，并交付：
-
-- 炫酷特效版 WebAR 页面
-- 可运行的演示链接与本地启动说明
-- 一版“性能优先”的降级开关
-
----
-
-## 12. 如何启动项目（当前可用）
-
-### 12.1 本地启动
-
-如果只看静态 AR 画面，可以用静态服务器：
+### Local static preview
 
 ```bash
 cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
-npm install
 python3 -m http.server 5173 --bind 0.0.0.0
 ```
 
-如果要联调 Kimi 语音导览，必须使用 Vercel 本地函数：
+This is enough to validate static loading and the AR page shell.
 
-```bash
-cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
-npm install
-vercel dev
-```
+Important:
+- local `python3 -m http.server` does **not** provide the Kimi API route.
+- if you want to test the Kimi intent layer locally, use a Vercel-compatible local runtime such as `vercel dev`.
 
-部署到 Vercel 后，直接使用 `https://<your-project>.vercel.app` 即可，无需 ngrok。
+### Vercel deployment
 
-### 12.2 手机访问要求
+Recommended for full mobile testing because it provides:
+- HTTPS
+- serverless API route support
+- mobile-safe camera access
 
-- iOS：使用 Safari 打开 `https://` 链接
-- Android：建议 Chrome
-- 进入页面后点击 `启动 AR`
-- 扫描用于编译 `assets/targets.mind` 的同一张目标图
+Required environment variables:
+- `LLM_API_KEY`
 
-### 12.3 是否需要重启
+Optional environment variables:
+- `LLM_BASE_URL`
+  - default: `https://api.moonshot.cn/v1`
+- `LLM_MODEL_NAME`
+  - default: `kimi-k2.5`
 
-以下情况建议重启服务并刷新页面：
+## Current Action System
 
-- 修改了 `app.js` / `index.html` / `style.css`
-- 修改了 `api/*.js` / `package.json`
-- 替换了 `assets/targets.mind`
-- 隧道地址过期或无法访问
+### Available actions
 
-推荐顺序：
+- `greeting`
+  - source: `assets/greeting_scale.glb`
+- `dancing`
+  - source: `assets/dancing_scale.glb`
 
-1. 关闭旧进程
-2. 重新启动本地服务或 `vercel dev`
-3. 如果在线上联调，等待 Vercel 新部署完成
-4. 手机端强制刷新页面
+### How the action system works
 
-### 12.4 常见问题
+- The visible base model is loaded from `greeting_scale.glb`.
+- Action clips are loaded from both GLB files.
+- A single `AnimationMixer` is attached to the visible model.
+- Buttons and voice input both resolve to fixed action IDs.
+- Action playback is intentionally one-shot and controlled.
 
-- 端口被占用（Address already in use）
+This is the correct architecture for the next phase, where more Mixamo clips can be added without changing the overall interaction model.
 
-```bash
-lsof -ti:5173 | xargs kill -9 2>/dev/null || true
-python3 -m http.server 5173 --bind 0.0.0.0
-```
+## Kimi Intent Layer
 
----
+### What it does
 
-## 14. AI 语音导览（Kimi）
+The Kimi layer is used only for intent classification.
 
-### 14.1 功能说明
+It does **not** directly control bones or generate arbitrary motion.
+Instead, it maps natural-language voice input to one of these fixed IDs:
 
-- 沪小宝支持“上海旅游限定”AI 导览问答
-- 手机界面展示 3 个预设问题，点击即可向 Kimi 发起请求
-- 手机界面新增“语音提问”按钮，可直接说出一个上海旅游相关问题
-- AI 回答会同时：
-  - 优先通过服务端 TTS 合成 MP3 后播放
-  - 当服务端 TTS 失败时，回退到浏览器 `speechSynthesis`
-- 点击沪小宝本体，会先激活导览模式并播报一段引导语
-- 当前界面不再显示长篇 AI 返回文字，前端以语音播报为主，减少对 AR 场景的遮挡
+- `greeting`
+- `dancing`
+- `unknown`
 
-### 14.2 预设问题
+### Why this design is used
 
-- `经典路线推荐`
-- `半天怎么玩`
-- `美食和夜游`
+This is materially more stable than letting an LLM freely decide animation behavior.
+For a client demo, the priorities are:
+- predictable actions
+- low failure rate
+- understandable behavior
+- clean fallback when AI is unavailable
 
-### 14.3 单轮语音提问（稳态方案）
+### Fallback behavior
 
-- 当前实现为“单轮语音提问”，不是多轮对话
-- 用户点击“语音提问”按钮后，可以直接说一个问题
-- 浏览器会先做语音识别，再将识别出的文本交给 Kimi
-- Kimi 回答后，继续走现有服务端 TTS 播报链路
-- 话题范围仍然限制为上海旅游相关内容
+If the Kimi API is unavailable, times out, or returns an invalid intent:
+- the app falls back to local keyword matching
+- `打招呼 / 挥手 / 招手` -> `greeting`
+- `跳舞 / 跳一个 / 舞` -> `dancing`
 
-说明：
+That keeps the demo usable even when AI is temporarily unavailable.
 
-- 该方案更稳定，适合展会、演示和导览场景
-- 不引入多轮上下文，因此不会出现“越聊越偏”的问题
-- 如果浏览器不支持语音识别，界面会提示继续使用预设问题
+## Known Risks And Practical Limits
 
-### 14.4 提示词策略
+This section is important for client expectation setting.
 
-- 服务端使用限制性系统提示词
-- 只允许回答上海旅游相关内容：
-  - 景点
-  - 美食
-  - 交通
-  - 夜游
-  - 历史文化
-  - 游玩路线
-- 非上海旅游问题会被礼貌拒绝并引导回上海导览
+### 1. The models are heavy for mobile WebAR
 
-### 14.5 环境变量（Vercel）
+Current asset sizes:
+- `greeting_scale.glb`: about `13 MB`
+- `dancing_scale.glb`: about `13 MB`
 
-在 Vercel Project Settings -> Environment Variables 中配置：
+Geometry and texture profile:
+- each model is about `219,558 triangles`
+- each model uses `2048 x 2048` textures
+- material includes:
+  - `baseColorTexture`
+  - `normalTexture`
+  - `specularTexture`
 
-```bash
-LLM_API_KEY=your_kimi_key
-LLM_BASE_URL=https://api.moonshot.cn/v1
-LLM_MODEL_NAME=kimi-k2.5
-```
+### 2. What this affects in real usage
 
-说明：
+These asset sizes directly affect:
+- first-load latency
+- mobile GPU pressure
+- heat and battery drain
+- animation smoothness on mid/low-end devices
+- risk of Safari tab reloads on memory-constrained iPhones
 
-- `LLM_API_KEY` 必填
-- `LLM_BASE_URL` 可留空，默认回落到 `https://api.moonshot.cn/v1`
-- `LLM_MODEL_NAME` 可留空，服务端会依次尝试 `kimi-k2.5`、`moonshotai/Kimi-K2.5`、`kimi-k2`、`moonshot-v1-8k`
-- 不要把 API Key 写进前端代码
-- 当前项目通过 `/api/kimi-guide` 服务端代理访问 Kimi
-- 浏览器端不会直接暴露密钥
+Expected user-visible symptoms on weaker phones:
+- slower initial appearance after scan
+- occasional dropped frames during animation
+- more obvious lag when switching actions
+- browser becoming warm after repeated testing
 
-### 14.6 方案 B 当前实现（免费 TTS）
+### 3. AR itself adds extra cost
 
-- 当前已按方案 B 落地：`Kimi 文本生成 + 服务端 TTS 音频播放`
-- TTS 提供方采用 `node-edge-tts`
-- 默认声音：`zh-CN-XiaoxiaoNeural`
-- 默认输出：`audio/mpeg`
-- 当前定位：
-  - 适合免费测试
-  - 适合 Demo 和验收
-  - 不作为最终商用高稳定性方案
+This is not a normal 3D web page.
+At runtime the device is doing all of the following together:
+- camera capture
+- image-target tracking
+- 3D rendering
+- skeletal animation
+- lighting and material shading
+- optional speech recognition
+- optional API requests to Kimi
 
-可选环境变量：
+So even a model that feels acceptable on desktop can still be heavy in mobile WebAR.
 
-```bash
-TTS_VOICE=zh-CN-XiaoxiaoNeural
-TTS_LANG=zh-CN
-TTS_RATE=+0%
-TTS_PITCH=+0Hz
-TTS_VOLUME=+0%
-TTS_OUTPUT_FORMAT=audio-24khz-48kbitrate-mono-mp3
-```
+### 4. Voice recognition is browser-dependent
 
-说明：
+Current voice input uses browser speech recognition.
+That means:
+- support differs by browser and OS version
+- recognition quality depends on microphone quality and background noise
+- Safari / Chrome behavior is not identical
+- some browsers may not expose speech recognition at all
 
-- 上述 TTS 变量全部可留空
-- 留空时会使用默认中文女声
-- 若你后续要测试其他声音，只需在 Vercel 修改 `TTS_VOICE`
-- 当前新增服务端接口：`/api/tts`
+The app already handles this by:
+- disabling the voice button when unsupported
+- keeping manual action buttons available
 
-### 14.7 浏览器兼容性说明
+### 5. Kimi intent adds network dependency
 
-- `Kimi + TTS` 部分：只要页面能正常打开并请求 API，即可工作
-- “语音提问”功能依赖浏览器语音识别能力：
-  - Safari / Chrome 的支持情况会因系统版本而异
-  - 不支持时，页面会自动提示用户改用预设问题
-- 因此当前最稳的交互顺序仍然是：
-  1. 点击沪小宝激活导览
-  2. 优先测试预设问题
-  3. 再测试“语音提问”按钮
+The Kimi layer improves flexibility, but it adds:
+- request latency
+- dependency on API availability
+- dependency on Vercel serverless route health
+- dependency on environment variables being configured correctly
 
----
+The current mitigation is to keep local keyword fallback enabled.
 
-## 13. 更新记录（持续同步）
+## What Is Safe For Demo Right Now
 
-### 2026-03-16 / 炫酷特效第一版
+This branch is safe for a client demo when the goal is:
+- show AR image tracking
+- show the stickman appearing in AR
+- show two reliable actions
+- show voice-triggered action switching
+- show that an AI intent layer can sit on top of fixed actions
 
-- 新增完整分镜流程：`城市亮起 -> 沪小宝登场 -> 点击角色 -> 播放讲解`
-- 新增城市激活特效：地台发光、扫光环、粒子氛围
-- 新增角色登场特效：光柱召唤 + 传送环 + 出场缓动
-- 新增点击反馈：冲击波环 + 角色高亮
-- 新增状态文案与阶段切换逻辑（移动端音频解锁策略保留）
+## What Is Not Yet Production-Ready
 
-### 2026-03-16 / 三件套重绘与定向优化（当前版本）
+This branch is **not** yet production-ready for wide public rollout because:
+- models are too heavy for many mobile devices
+- action library is still small
+- voice intent is still limited to a narrow action set
+- there is no asset compression pipeline yet
+- there is no device-adaptive quality strategy yet
 
-- 城市建筑重构为“上海三件套”专属，不再使用随机高楼群
-- 三件套分阶段渐亮（非同时点亮）：
-  1. 东方明珠
-  2. 上海中心
-  3. 环球金融中心
-- 每个地标新增独立霓虹扫光环与独立亮起时序参数
-- 东方明珠结构修正为：三支撑腿 + 双球 + 主杆 + 天线
-- 上海中心改为玻璃流线塔体，并加入螺旋灯带
-- 环球金融中心改为开瓶器轮廓，并增加金色框线材质
-- 沪小宝登场位置前移到 C 位，避免被三件套遮挡
-- 角色材质深度测试策略调整，保证演示时角色可见性
+## Recommended Next Optimization Steps
 
-### 2026-03-16 / 三件套写实增强 + 点击稳定 + 烟花背景
+Before public rollout, the highest-value work is:
 
-- 三件套建筑统一为蓝青霓虹主色调，并加入现代立面纹理（程序化幕墙贴图）
-- 三件套均加入“点灯动效”：
-  - 地标独立扫光环
-  - 动态光点（light beads）脉冲
-  - 分阶段渐亮时序保持不变
-- 东方明珠结构再次修正：三支撑腿、双球、主杆、天线，轮廓更接近真实形态
-- 沪小宝位置继续前移到前景 C 位，并新增隐形点击命中体（tap hitbox）
-- 点击检测改为“模型 + 命中体”双通道，解决被建筑干扰导致点击不触发问题
-- 背景新增随机烟花系统（多色、随机形状：球状/环状/星状），并在目标丢失时自动清理
+1. reduce polygon count
+2. compress textures
+3. keep one consistent skeleton for all actions
+4. add more actions without changing the intent contract
+5. introduce device-tier quality fallback
+6. optionally precompress GLB assets with mesh and texture optimization
 
-### 2026-03-16 / 烟花强化 + 幕墙纹理加强 + 点击兜底修复
+## Validation Checklist
 
-- 烟花特效增强：
-  - 提升爆炸频率（高频触发）
-  - 增加并发爆炸数量、粒子数量、粒子尺寸和亮度
-  - 保持多色与随机形状（球状/环状/星状）
-- 建筑写实感增强：
-  - 增强程序化幕墙纹理对比度
-  - 新增发光窗格纹理层（emissive map）
-  - 强化表面细节（clearcoat + bump + roughness 细节）
-- 点击触发稳定性增强：
-  - 角色点击命中体扩大
-  - 新增透明辅助点击平面
-  - 增加屏幕空间距离兜底命中
-  - 点击时二次尝试音频解锁，避免讲解不播
-  - 监听 `pointerdown/touchstart/click` 三路事件
+Before showing a client, verify:
 
-### 2026-03-16 / 超大烟花 + 角色前置定点 + 点击讲解强化
+1. page opens over HTTPS
+2. camera permission is granted
+3. target image is recognized reliably
+4. greeting action plays after reveal
+5. button-triggered `打招呼` works
+6. button-triggered `跳舞` works
+7. voice trigger works when Kimi is available
+8. local fallback still works when Kimi is unavailable
 
-- 烟花效果进一步放大：
-  - 爆炸粒子数量显著提升
-  - 爆炸半径大幅增加
-  - 显示区域扩展到更大空间范围
-  - 并发爆炸数量与触发频次进一步提高
-- 沪小宝位置调整为“最前中间”：
-  - 角色容器继续前移到前景 C 位
-  - 禁用自动旋转，保持正面展示
-- 点击触发讲解加强：
-  - 点击命中体再次放大
-  - 辅助点击平面扩大
-  - 屏幕空间兜底命中半径增大，提升触发成功率
+## Current Status
 
-### 2026-03-16 / 烟花长驻增强 + 点击一次性兜底修复
-
-- 烟花“更大更久”增强：
-  - 爆炸半径、粒子数、粒子尺寸再次提升
-  - 延长单次烟花生命周期，减慢消失速度
-  - 提高触发频率并限制最大并发，兼顾明显度与性能
-  - 扩大烟花空间覆盖范围，远近层次更明显
-- 点击沪小宝触发讲解“兜底修复”：
-  - 增加统一事件坐标提取（pointer/touch/click）
-  - 扩大屏幕空间命中半径
-  - 新增中心区域终极兜底命中策略
-  - 点击命中后先二次音频解锁，再执行讲解播放
-  - 增加全局 `pointerup` 监听，提升移动端触发成功率
-
-### 2026-03-16 / 地标配色区分 + 角色样式保持 + 上海中心环绕粒子
-
-- 点击沪小宝后，角色样式保持不变（移除点击后高亮改色逻辑）
-- 三件套配色区分：
-  - 东方明珠：三球改为红色系
-  - 环球金融中心：主材质改为银色金属风
-  - 上海中心：保留螺旋灯带并增强环绕粒子动态
-- 上海中心新增环绕粒子圈与环形光带的动态旋转动画
-
-### 2026-03-27 / Kimi 上海旅游语音导览
-
-- 新增服务端代理接口 `/api/kimi-guide`，通过 Vercel Function 调用 Kimi，避免前端暴露密钥
-- 修复 Kimi 默认环境变量兜底：只配置 `LLM_API_KEY` 也可工作，默认补全 Moonshot base URL，并在未指定模型时自动尝试多组兼容模型名
-- 新增限制性系统提示词：仅回答上海旅游相关内容，超出范围会回到上海导览
-- 新增 3 个手机端预设问题：
-  - 经典路线推荐
-  - 半天怎么玩
-  - 美食和夜游
-- 新增导览面板：显示问题按钮和 AI 回答文本
-- 点击沪小宝会激活语音导览模式，并播报引导语
-- 点击预设问题后：
-  - 向 Kimi 请求回答
-  - 在界面显示回答
-  - 用手机浏览器 `speechSynthesis` 播报答案
-- 新增 `vercel.json` 缓存控制，避免 `targets.mind` 与 API 响应被错误缓存
-
-### 2026-03-27 / 方案 B 落地：免费服务端 TTS 音频播放
-
-- 新增 `package.json` 与 `node-edge-tts` 依赖，支持在 Vercel Serverless 中合成音频
-- 新增服务端接口 `/api/tts`：
-  - 接收文本
-  - 服务端合成 MP3
-  - 前端直接播放音频
-- 预设问题与沪小宝引导语，现已优先走服务端 TTS，不再只依赖浏览器原生语音
-- 保留浏览器 `speechSynthesis` 兜底，确保测试时即使 TTS 失败也不至于完全静音
-- 默认语音调整为更自然的中文女声，移动端听感优于原生朗读
-
-### 2026-03-27 / 单轮语音提问接入
-
-- 新增“语音提问”按钮，允许用户直接说出上海旅游相关问题
-- 使用浏览器 `SpeechRecognition / webkitSpeechRecognition` 做单轮语音识别
-- 识别到的文本直接接入现有 `/api/kimi-guide` 导览链路
-- 返回答案后继续走 `/api/tts` 语音播报
-- 不引入多轮上下文，确保交互更稳、更适合演示
-- 浏览器不支持语音识别时，会自动提示继续使用预设问题
-
-### 2026-03-28 / 导览界面极简化
-
-- 隐藏 AI 返回长文本，只保留语音播报
-- 将“语音提问”按钮移动到导览面板底部
-- 缩小并弱化底部悬浮卡片，减少对 3D 人物和城市特效的遮挡
-- 保留必要状态提示与预设问题按钮，整体界面更简洁、更干净
-
-### 维护规则
-
-- 后续每次功能或视觉更新，都会在本章节追加一条“日期 + 变更摘要”。
+This branch now includes:
+- clean stickman-only AR project structure
+- improved lighting for better material presentation
+- two-action animation system
+- browser voice capture
+- Kimi intent classification layer
+- local keyword fallback for demo stability
