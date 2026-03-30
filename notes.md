@@ -1,22 +1,18 @@
-# Notes: Minimal Voice Guide UI Cleanup
+# Notes
 
-## Requested UI Changes
+## Asset profile
+- `greeting_scale.glb` and `dancing_scale.glb` are both about 13 MB.
+- Both assets appear to share the same rig and material structure.
+- Each file is about 219k triangles with 2048 textures.
+- This is acceptable for a client demo, but heavy for general mobile WebAR rollout.
 
-- Do not show the full AI answer text on screen.
-- Voice output should remain active.
-- Move the voice-question button to the bottom of the interaction area.
-- Make the whole overlay cleaner and less obstructive to the AR scene.
+## Voice / intent design
+- Browser speech recognition captures the raw transcript.
+- The transcript is first sent to Kimi through `api/intent.js`.
+- Kimi is constrained to output one fixed action ID.
+- Frontend falls back to local keyword mapping if the API route fails.
 
-## UI Plan
-
-- Keep a small floating card near the bottom.
-- Keep title and status text compact.
-- Keep preset question buttons as the main visible controls.
-- Move the voice button below the preset buttons.
-- Hide the answer area from view using CSS and keep it only as an internal state container.
-
-## Logic Plan
-
-- Continue storing `lastGuideAnswer` for replay and audio flow.
-- Stop writing large visible answer text into the main card.
-- Use short status / hint text instead of long answer paragraphs.
+## Important engineering stance
+- The LLM does not directly control animation logic.
+- The LLM only classifies intent into a fixed contract.
+- This keeps the demo predictable and avoids unstable free-form motion behavior.

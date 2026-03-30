@@ -1,26 +1,38 @@
-# Task Plan: Minimal Voice Guide UI Cleanup
+# Stickman Actions and Voice Trigger
 
 ## Goal
-Hide visible AI answer text, move the voice-question button to the bottom, and simplify the overlay so it obstructs the AR scene as little as possible.
 
-## Phases
-- [x] Phase 1: Review current guide UI structure and identify obstructive elements
-- [x] Phase 2: Simplify markup and styles for a cleaner low-obstruction overlay
-- [x] Phase 3: Adjust app logic so answers are spoken without being visibly rendered
-- [x] Phase 4: Update README and verify the UI behavior
-
-## Key Questions
-1. Which UI elements are essential for the experience and which should be visually removed?
-2. How can status feedback remain clear without covering the AR content?
-
-## Decisions Made
-- Keep preset question buttons visible because they are still a primary interaction path.
-- Hide the long AI text block from the visible UI while preserving internal state.
-- Place the voice button last in the panel so it sits at the bottom.
-- Reduce card footprint and visual weight to avoid blocking the 3D scene.
-
-## Errors Encountered
-- None
+Upgrade the current stickman AR demo into a stable client-demo build with:
+- two switchable actions
+- browser voice input
+- Kimi intent classification
+- explicit documentation of current mobile performance risks
 
 ## Status
-**Completed** - The guide UI is now voice-first, less obstructive, and no longer shows long visible AI answer text.
+
+### Phase 1: Clean stickman-only branch
+- [x] remove Hu Xiaobao-specific files and APIs
+- [x] keep core WebAR architecture
+- [x] retain target tracking assets
+
+### Phase 2: Action system
+- [x] wire `greeting_scale.glb`
+- [x] wire `dancing_scale.glb`
+- [x] enable button-triggered action switching
+
+### Phase 3: Voice trigger structure
+- [x] browser speech recognition
+- [x] Kimi intent classification route
+- [x] local keyword fallback when Kimi is unavailable
+
+### Phase 4: Documentation and handoff
+- [x] document deployment requirements
+- [x] document asset weight and mobile risk
+- [x] document current demo-safe limits
+
+## Next recommended step
+
+1. compress both GLB assets
+2. add one idle clip
+3. define a larger fixed action ID set
+4. only then expand AI-controlled intents

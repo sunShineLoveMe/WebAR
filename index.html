@@ -1,11 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Hu Xiaobao WebAR Demo</title>
+    <title>Stickman AR Demo</title>
     <link rel="stylesheet" href="./style.css" />
-
     <script type="importmap">
       {
         "imports": {
@@ -18,27 +17,20 @@
   <body>
     <div id="ar-container"></div>
 
-    <div class="overlay" id="overlay">
+    <div class="overlay">
       <div class="overlay-card">
-        <h1>沪小宝 AR 炫酷版</h1>
-        <p id="status-text">扫描图片，点亮上海</p>
+        <p class="eyebrow">Stickman AR</p>
+        <h1>扫码唤醒火柴人</h1>
+        <p id="status-text">扫描图片目标，查看火柴人动作演示</p>
         <button id="start-btn" type="button">启动 AR</button>
-        <div class="guide-panel hidden" id="guide-panel">
-          <p class="guide-label">沪小宝语音导览</p>
-          <p class="voice-hint" id="voice-hint">你也可以直接问：上海哪里最值得去？</p>
-          <div class="question-list" id="question-list">
-            <button class="question-chip" type="button" data-question="上海第一次来玩，最推荐的经典路线是什么？">
-              经典路线推荐
-            </button>
-            <button class="question-chip" type="button" data-question="如果我只留半天时间，上海最值得看的景点有哪些？">
-              半天怎么玩
-            </button>
-            <button class="question-chip" type="button" data-question="来上海旅游，有哪些本地美食和夜游体验一定不能错过？">
-              美食和夜游
-            </button>
+        <div class="control-panel hidden" id="control-panel">
+          <div class="action-list">
+            <button class="action-btn" type="button" data-action="idle">待机</button>
+            <button class="action-btn" type="button" data-action="greeting">打招呼</button>
+            <button class="action-btn" type="button" data-action="dancing">跳舞</button>
           </div>
-          <button class="voice-btn" id="voice-btn" type="button">点击语音提问</button>
-          <div class="guide-answer" id="guide-answer">点击沪小宝或下方问题，听沪小宝介绍上海。</div>
+          <button class="voice-btn" id="voice-btn" type="button">语音触发动作</button>
+          <p class="voice-hint" id="voice-hint">可以说“打招呼”或“跳舞”</p>
         </div>
       </div>
     </div>
