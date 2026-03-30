@@ -1,6 +1,6 @@
 const DEFAULT_BASE_URL = "https://api.moonshot.cn/v1";
 const DEFAULT_MODEL_NAME = "kimi-k2.5";
-const ACTION_KEYS = new Set(["greeting", "dancing", "unknown"]);
+const ACTION_KEYS = new Set(["idle", "greeting", "dancing", "unknown"]);
 
 const normalizeBaseUrl = (value) => {
   const base = String(value || "").trim() || DEFAULT_BASE_URL;
@@ -36,6 +36,7 @@ const extractJson = (text) => {
 const mapIntent = (value) => {
   const normalized = String(value || "").trim().toLowerCase();
   if (ACTION_KEYS.has(normalized)) return normalized;
+  if (normalized.includes("idle") || normalized.includes("rest") || normalized.includes("待机")) return "idle";
   if (normalized.includes("dance") || normalized.includes("跳")) return "dancing";
   if (normalized.includes("greet") || normalized.includes("wave") || normalized.includes("招呼")) return "greeting";
   return "unknown";
@@ -62,7 +63,8 @@ export default async function handler(req, res) {
 
   const systemPrompt =
     "你是一个火柴人AR动作意图分类器。你的任务不是聊天，而是把用户的中文口语命令映射为固定动作ID。只允许输出 JSON，格式为 " +
-    '{"intent":"greeting|dancing|unknown","reply":"简短中文回复，20字以内"}。' +
+    '{"intent":"idle|greeting|dancing|unknown","reply":"简短中文回复，20字以内"}。' +
+    "如果用户表达待机、休息、站好、停一下，intent=idle。" +
     "如果用户表达打招呼、挥手、招手、问好，intent=greeting。" +
     "如果用户表达跳舞、来一段、舞蹈、摇摆，intent=dancing。" +
     "如果无法判断，intent=unknown。不要输出任何额外解释。";
@@ -76,7 +78,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model,
-        temperature: 0.1,
+        temperature: 1,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: text }

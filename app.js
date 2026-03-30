@@ -19,6 +19,7 @@ const STAGE = {
 };
 
 const ACTION_KEYS = {
+  IDLE: "idle",
   GREETING: "greeting",
   DANCING: "dancing"
 };
@@ -70,10 +71,10 @@ let targetVisible = false;
 let voiceSupported = false;
 let voiceListening = false;
 let recognition;
-let pendingActionKey = null;
-let activeActionKey = ACTION_KEYS.GREETING;
+let activeActionKey = ACTION_KEYS.IDLE;
 let actionsLoaded = false;
 let lastRecognizedTranscript = "";
+let idleAction = null;
 
 const actionClips = new Map();
 const actionInstances = new Map();
@@ -155,12 +156,13 @@ const updateVoiceUi = ({ listening = voiceListening, hint } = {}) => {
   }
 
   voiceButton.textContent = listening ? "正在听你说话..." : "语音触发动作";
-  voiceHint.textContent = hint || (listening ? "请说“打招呼”或“跳舞”" : "可以说“打招呼”或“跳舞”");
+  voiceHint.textContent = hint || (listening ? "请说“打招呼”“跳舞”或“待机”" : "可以说“打招呼”“跳舞”或“待机”");
 };
 
 const inferLocalAction = (transcript) => {
   const text = String(transcript || "").trim();
   if (!text) return null;
+  if (text.includes("待机") || text.includes("休息") || text.includes("站好")) return ACTION_KEYS.IDLE;
   if (text.includes("跳") || text.includes("舞")) return ACTION_KEYS.DANCING;
   if (text.includes("招呼") || text.includes("挥") || text.includes("手")) return ACTION_KEYS.GREETING;
   return null;
@@ -195,10 +197,19 @@ const handleTranscript = async (transcript) => {
       ? ACTION_KEYS.DANCING
       : payload?.intent === ACTION_KEYS.GREETING
         ? ACTION_KEYS.GREETING
-        : null;
+        : payload?.intent === ACTION_KEYS.IDLE
+          ? ACTION_KEYS.IDLE
+          : null;
 
     if (actionKey) {
-      setStatus(payload?.reply || (actionKey === ACTION_KEYS.DANCING ? "Kimi 判定：跳舞" : "Kimi 判定：打招呼"));
+      setStatus(
+        payload?.reply ||
+        (actionKey === ACTION_KEYS.DANCING
+          ? "Kimi 判定：跳舞"
+          : actionKey === ACTION_KEYS.GREETING
+            ? "Kimi 判定：打招呼"
+            : "Kimi 判定：回到待机")
+      );
       playAction(actionKey, { force: true });
       return;
     }
@@ -208,7 +219,15 @@ const handleTranscript = async (transcript) => {
 
   const fallbackAction = inferLocalAction(transcript);
   if (fallbackAction) {
-    setStatus(`本地识别：${fallbackAction === ACTION_KEYS.DANCING ? "跳舞" : "打招呼"}`);
+    setStatus(
+      `本地识别：${
+        fallbackAction === ACTION_KEYS.DANCING
+          ? "跳舞"
+          : fallbackAction === ACTION_KEYS.GREETING
+            ? "打招呼"
+            : "待机"
+      }`
+    );
     playAction(fallbackAction, { force: true });
     return;
   }
@@ -234,26 +253,56 @@ const ensureActionInstance = (actionKey) => {
   const clip = actionClips.get(actionKey);
   if (!clip) return null;
   const action = mixer.clipAction(clip);
-  action.clampWhenFinished = true;
-  action.setLoop(THREE.LoopOnce, 1);
+  if (actionKey === ACTION_KEYS.IDLE) {
+    action.clampWhenFinished = false;
+    action.setLoop(THREE.LoopRepeat, Infinity);
+  } else {
+    action.clampWhenFinished = true;
+    action.setLoop(THREE.LoopOnce, 1);
+  }
   actionInstances.set(actionKey, action);
   return action;
 };
 
+const playIdle = ({ immediate = false } = {}) => {
+  if (!mixer) return;
+  const nextIdle = ensureActionInstance(ACTION_KEYS.IDLE);
+  if (!nextIdle) return;
+
+  const previousAction = actionInstances.get(activeActionKey);
+  activeActionKey = ACTION_KEYS.IDLE;
+  stage = STAGE.READY;
+  stageElapsed = 0;
+  setActiveButton("");
+  setControlsEnabled(true);
+  setStatus("火柴人待机中，可点击按钮或语音触发动作");
+
+  nextIdle.enabled = true;
+  nextIdle.setEffectiveTimeScale(1);
+  nextIdle.setEffectiveWeight(1);
+
+  if (immediate || !previousAction || previousAction === nextIdle) {
+    nextIdle.reset().play();
+    return;
+  }
+
+  nextIdle.reset();
+  nextIdle.crossFadeFrom(previousAction, 0.28, true).play();
+};
+
 const playAction = (actionKey, { force = false } = {}) => {
   if (!actionsLoaded || !mixer) return;
+  if (actionKey === ACTION_KEYS.IDLE) {
+    playIdle();
+    return;
+  }
   if (!force && activeActionKey === actionKey && stage === STAGE.ACTION) return;
 
   const nextAction = ensureActionInstance(actionKey);
   if (!nextAction) return;
-
-  const previousAction = actionInstances.get(activeActionKey);
-  if (previousAction && previousAction !== nextAction) {
-    previousAction.fadeOut(0.18);
-  }
+  const previousAction = actionInstances.get(activeActionKey) || idleAction || actionInstances.get(ACTION_KEYS.IDLE);
 
   activeActionKey = actionKey;
-  pendingActionKey = null;
   stage = STAGE.ACTION;
   stageElapsed = 0;
   setActiveButton(actionKey);
@@ -264,7 +313,11 @@ const playAction = (actionKey, { force = false } = {}) => {
   nextAction.enabled = true;
   nextAction.setEffectiveTimeScale(1);
   nextAction.setEffectiveWeight(1);
-  nextAction.fadeIn(0.2).play();
+  if (previousAction && previousAction !== nextAction) {
+    nextAction.crossFadeFrom(previousAction, 0.22, true).play();
+  } else {
+    nextAction.fadeIn(0.2).play();
+  }
 };
 
 const switchStage = (nextStage) => {
@@ -288,10 +341,10 @@ const switchStage = (nextStage) => {
   }
 
   if (stage === STAGE.READY) {
-    setStatus("火柴人已就位，可点击按钮或语音触发动作");
+    setStatus("火柴人已就位，当前为待机动作");
     controlPanel.classList.remove("hidden");
     setControlsEnabled(true);
-    setActiveButton(activeActionKey);
+    setActiveButton("");
     if (lastRecognizedTranscript) {
       updateVoiceUi({ hint: `上次识别：${lastRecognizedTranscript}` });
     }
@@ -333,7 +386,7 @@ const initVoiceRecognition = () => {
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
-    updateVoiceUi({ listening: true, hint: "请说“打招呼”或“跳舞”" });
+    updateVoiceUi({ listening: true, hint: "请说“打招呼”“跳舞”或“待机”" });
     setStatus("火柴人正在听你的动作指令");
   };
 
@@ -361,12 +414,13 @@ const initVoiceRecognition = () => {
 };
 
 const loadStickmanAssets = async () => {
-  const [greetingAsset, dancingAsset] = await Promise.all([
+  const [idleAsset, greetingAsset, dancingAsset] = await Promise.all([
+    loader.loadAsync("./assets/idle_scale.glb"),
     loader.loadAsync("./assets/greeting_scale.glb"),
     loader.loadAsync("./assets/dancing_scale.glb")
   ]);
 
-  modelRoot = greetingAsset.scene;
+  modelRoot = idleAsset.scene;
   modelRoot.visible = false;
 
   const box = new THREE.Box3().setFromObject(modelRoot);
@@ -387,6 +441,9 @@ const loadStickmanAssets = async () => {
   anchor.group.add(modelRoot);
 
   mixer = new THREE.AnimationMixer(modelRoot);
+  if (idleAsset.animations[0]) {
+    actionClips.set(ACTION_KEYS.IDLE, idleAsset.animations[0]);
+  }
   if (greetingAsset.animations[0]) {
     actionClips.set(ACTION_KEYS.GREETING, greetingAsset.animations[0]);
   }
@@ -394,9 +451,10 @@ const loadStickmanAssets = async () => {
     actionClips.set(ACTION_KEYS.DANCING, dancingAsset.animations[0]);
   }
 
+  idleAction = ensureActionInstance(ACTION_KEYS.IDLE);
   ensureActionInstance(ACTION_KEYS.GREETING);
   ensureActionInstance(ACTION_KEYS.DANCING);
-  actionsLoaded = actionClips.size > 0;
+  actionsLoaded = actionClips.has(ACTION_KEYS.IDLE) && actionClips.has(ACTION_KEYS.GREETING) && actionClips.has(ACTION_KEYS.DANCING);
 
   if (targetVisible && actionsLoaded) {
     switchStage(STAGE.REVEAL);
@@ -432,6 +490,7 @@ anchor.onTargetLost = () => {
   for (const action of actionInstances.values()) {
     action.stop();
   }
+  activeActionKey = ACTION_KEYS.IDLE;
   setStatus("扫描图片目标，查看火柴人动作演示");
 };
 
@@ -505,7 +564,10 @@ const animateReveal = (elapsed) => {
     if (modelRoot) {
       modelRoot.scale.setScalar(modelScale);
     }
-    playAction(ACTION_KEYS.GREETING, { force: true });
+    playIdle({ immediate: true });
+    setTimeout(() => {
+      if (targetVisible) playAction(ACTION_KEYS.GREETING, { force: true });
+    }, 240);
   }
 };
 
@@ -529,7 +591,7 @@ const animateAction = (elapsed, dt) => {
   animateReady(elapsed, dt);
   const currentAction = actionInstances.get(activeActionKey);
   if (currentAction && !currentAction.isRunning()) {
-    switchStage(STAGE.READY);
+    playIdle();
   }
 };
 

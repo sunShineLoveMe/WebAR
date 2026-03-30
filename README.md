@@ -1,35 +1,120 @@
-# Stickman WebAR Demo
+# 火柴人 WebAR 演示项目
 
-## Overview
+## 项目简介
 
-This branch is rebuilt as a stickman-focused WebAR demo on the original stack:
+这是一个基于原有技术架构重建的火柴人 WebAR 演示项目。
+
+技术栈保持不变：
 
 - JavaScript
 - Three.js
-- MindAR image tracking
+- MindAR 图像识别
 - GLTFLoader
 - WebGL
-- ES modules
+- ES Modules
 
-Current demo flow:
+当前版本的目标不是做自由聊天，而是做一个稳定、可演示、可继续扩展的 AR 动作交互 Demo。
 
-1. Open the page on a mobile browser with camera permission.
-2. Tap `启动 AR`.
-3. Scan the configured image target.
-4. The stickman appears above the target with a reveal effect.
-5. The stickman auto-plays the greeting action once.
-6. The user can then trigger either:
+## 当前演示效果
+
+用户流程如下：
+
+1. 手机打开页面并允许相机权限。
+2. 点击 `启动 AR`。
+3. 扫描目标图。
+4. 火柴人出现在目标图上方，并播放出场效果。
+5. 火柴人先进入 `待机` 动作。
+6. 随后自动平滑切入一次 `打招呼` 动作。
+7. 动作结束后，自动平滑回到 `待机`。
+8. 用户此时可以通过按钮或语音，触发：
    - `打招呼`
    - `跳舞`
-7. The user can also use voice input.
-   - Browser speech recognition captures the sentence.
-   - The transcript is sent to Kimi for intent classification.
-   - Kimi maps the sentence to a fixed action ID.
-   - If Kimi is unavailable, the frontend falls back to local keyword mapping.
+   - `待机`
 
-This is deliberately a controlled action-demo architecture, not a free-form chat agent.
+## 动作设计说明
 
-## Project Structure
+### 当前动作资源
+
+- `assets/idle_scale.glb`
+  - 待机动作
+  - 作为默认循环底座动作
+- `assets/greeting_scale.glb`
+  - 打招呼动作
+  - 单次播放
+- `assets/dancing_scale.glb`
+  - 跳舞动作
+  - 单次播放
+
+### 动作切换逻辑
+
+当前版本已经做了动作过渡，不是生硬切换。
+
+逻辑如下：
+
+- `idle` 使用循环播放
+- `greeting` 和 `dancing` 使用单次播放
+- 从 `idle -> greeting`
+  - 使用淡入淡出过渡
+- 从 `idle -> dancing`
+  - 使用淡入淡出过渡
+- 从 `greeting -> idle`
+  - 动作结束后自动回切
+- 从 `dancing -> idle`
+  - 动作结束后自动回切
+
+这样做的目的是：
+
+- 让角色一直“活着”
+- 让演示更自然
+- 避免动作切换时特别突兀
+
+## AI 与语音触发结构
+
+### 当前语音交互方式
+
+当前项目支持浏览器语音识别。
+
+用户点击 `语音触发动作` 后，可以直接说：
+
+- `打招呼`
+- `跳舞`
+- `待机`
+
+### Kimi 意图层
+
+语音识别后的文本，会先发到 Kimi 做动作意图分类。
+
+Kimi 只负责一件事：
+
+把自然语言映射成固定动作 ID：
+
+- `idle`
+- `greeting`
+- `dancing`
+- `unknown`
+
+这个设计是刻意控制过的。
+
+Kimi 不直接控制骨骼，也不自由生成动作逻辑。这样做的原因是：
+
+- 更稳定
+- 更适合演示
+- 更容易扩展更多动作
+- 不会因为 AI 输出发散导致前端动作失控
+
+### 本地兜底逻辑
+
+如果 Kimi 不可用、环境变量没配好、接口失败，前端仍然可以继续演示。
+
+兜底规则：
+
+- `打招呼 / 挥手 / 招手 / 问好` -> `greeting`
+- `跳舞 / 舞 / 来一段` -> `dancing`
+- `待机 / 休息 / 站好` -> `idle`
+
+这保证了即使 AI 服务异常，客户现场 Demo 也不会直接失效。
+
+## 项目结构
 
 ```text
 project/
@@ -40,6 +125,7 @@ project/
 ├─ style.css
 ├─ vercel.json
 ├─ assets/
+│  ├─ idle_scale.glb
 │  ├─ greeting_scale.glb
 │  ├─ dancing_scale.glb
 │  ├─ target-image.png
@@ -47,205 +133,203 @@ project/
 └─ README.md
 ```
 
-## How To Run
+## 如何运行
 
-### Local static preview
+### 1. 本地静态预览
 
 ```bash
 cd "/Users/june/Documents/大模型/多模态模型/AR3D_Model"
 python3 -m http.server 5173 --bind 0.0.0.0
 ```
 
-This is enough to validate static loading and the AR page shell.
+这一步可以用于验证：
 
-Important:
-- local `python3 -m http.server` does **not** provide the Kimi API route.
-- if you want to test the Kimi intent layer locally, use a Vercel-compatible local runtime such as `vercel dev`.
+- 页面能否打开
+- AR 静态资源能否正常加载
+- GLB 文件是否能被访问
 
-### Vercel deployment
+注意：
 
-Recommended for full mobile testing because it provides:
-- HTTPS
-- serverless API route support
-- mobile-safe camera access
+- `python3 -m http.server` 只能跑静态页面
+- 它不能提供 `api/intent.js` 这样的服务端接口
+- 所以如果你要测试 Kimi 意图层，建议使用 Vercel 部署，或者使用 `vercel dev`
 
-Required environment variables:
+### 2. Vercel 部署
+
+如果要完整测试：
+
+- HTTPS 相机访问
+- WebAR 识别
+- Kimi 意图分类
+
+建议直接部署到 Vercel。
+
+### 3. Vercel 环境变量
+
+必填：
+
 - `LLM_API_KEY`
 
-Optional environment variables:
+可选：
+
 - `LLM_BASE_URL`
-  - default: `https://api.moonshot.cn/v1`
+  - 默认值：`https://api.moonshot.cn/v1`
 - `LLM_MODEL_NAME`
-  - default: `kimi-k2.5`
+  - 默认值：`kimi-k2.5`
 
-## Current Action System
+## 当前版本的优点
 
-### Available actions
+这版适合客户演示，原因很明确：
 
-- `greeting`
-  - source: `assets/greeting_scale.glb`
-- `dancing`
-  - source: `assets/dancing_scale.glb`
+- AR 识别链路已通
+- 火柴人模型已接入
+- 多动作切换已接入
+- 动作衔接比之前更自然
+- 浏览器语音输入已接入
+- Kimi 意图识别已接入
+- 本地关键词兜底已接入
 
-### How the action system works
+也就是说，这已经不是一个纯视觉壳子，而是一个可交互的火柴人 AR 动作 Demo。
 
-- The visible base model is loaded from `greeting_scale.glb`.
-- Action clips are loaded from both GLB files.
-- A single `AnimationMixer` is attached to the visible model.
-- Buttons and voice input both resolve to fixed action IDs.
-- Action playback is intentionally one-shot and controlled.
+## 当前潜在问题
 
-This is the correct architecture for the next phase, where more Mixamo clips can be added without changing the overall interaction model.
+这一部分需要明确告诉客户或内部团队。
 
-## Kimi Intent Layer
+### 1. 模型资源偏大
 
-### What it does
+当前资源体积：
 
-The Kimi layer is used only for intent classification.
+- `idle_scale.glb`：约 `13 MB`
+- `greeting_scale.glb`：约 `13 MB`
+- `dancing_scale.glb`：约 `13 MB`
 
-It does **not** directly control bones or generate arbitrary motion.
-Instead, it maps natural-language voice input to one of these fixed IDs:
+每个模型大致情况：
 
-- `greeting`
-- `dancing`
-- `unknown`
-
-### Why this design is used
-
-This is materially more stable than letting an LLM freely decide animation behavior.
-For a client demo, the priorities are:
-- predictable actions
-- low failure rate
-- understandable behavior
-- clean fallback when AI is unavailable
-
-### Fallback behavior
-
-If the Kimi API is unavailable, times out, or returns an invalid intent:
-- the app falls back to local keyword matching
-- `打招呼 / 挥手 / 招手` -> `greeting`
-- `跳舞 / 跳一个 / 舞` -> `dancing`
-
-That keeps the demo usable even when AI is temporarily unavailable.
-
-## Known Risks And Practical Limits
-
-This section is important for client expectation setting.
-
-### 1. The models are heavy for mobile WebAR
-
-Current asset sizes:
-- `greeting_scale.glb`: about `13 MB`
-- `dancing_scale.glb`: about `13 MB`
-
-Geometry and texture profile:
-- each model is about `219,558 triangles`
-- each model uses `2048 x 2048` textures
-- material includes:
+- 约 `219,558 triangles`
+- 使用 `2048 x 2048` 贴图
+- 包含：
   - `baseColorTexture`
   - `normalTexture`
   - `specularTexture`
 
-### 2. What this affects in real usage
+### 2. 会影响哪些用户体验
 
-These asset sizes directly affect:
-- first-load latency
-- mobile GPU pressure
-- heat and battery drain
-- animation smoothness on mid/low-end devices
-- risk of Safari tab reloads on memory-constrained iPhones
+这些资源大小会直接影响：
 
-Expected user-visible symptoms on weaker phones:
-- slower initial appearance after scan
-- occasional dropped frames during animation
-- more obvious lag when switching actions
-- browser becoming warm after repeated testing
+- 首次加载速度
+- 扫描后模型出现速度
+- 动画播放的流畅度
+- 手机发热
+- 电量消耗
+- iPhone Safari 内存压力
 
-### 3. AR itself adds extra cost
+在中低端手机上，可能出现：
 
-This is not a normal 3D web page.
-At runtime the device is doing all of the following together:
-- camera capture
-- image-target tracking
-- 3D rendering
-- skeletal animation
-- lighting and material shading
-- optional speech recognition
-- optional API requests to Kimi
+- 扫码后等待更久
+- 动作掉帧
+- 切换动作时不够丝滑
+- 连续测试后浏览器发热明显
+- 个别设备出现刷新或回收页面的情况
 
-So even a model that feels acceptable on desktop can still be heavy in mobile WebAR.
+### 3. WebAR 本身就比普通网页更重
 
-### 4. Voice recognition is browser-dependent
+这个项目运行时，同时在做这些事情：
 
-Current voice input uses browser speech recognition.
-That means:
-- support differs by browser and OS version
-- recognition quality depends on microphone quality and background noise
-- Safari / Chrome behavior is not identical
-- some browsers may not expose speech recognition at all
+- 相机采集
+- 图像识别追踪
+- 3D 实时渲染
+- 骨骼动画播放
+- 材质和灯光计算
+- 浏览器语音识别
+- Kimi 网络请求
 
-The app already handles this by:
-- disabling the voice button when unsupported
-- keeping manual action buttons available
+所以即使桌面浏览器看起来没问题，移动端依然可能有性能压力。
 
-### 5. Kimi intent adds network dependency
+### 4. 语音识别依赖浏览器能力
 
-The Kimi layer improves flexibility, but it adds:
-- request latency
-- dependency on API availability
-- dependency on Vercel serverless route health
-- dependency on environment variables being configured correctly
+当前语音输入使用浏览器内建识别能力。
 
-The current mitigation is to keep local keyword fallback enabled.
+因此会有这些边界：
 
-## What Is Safe For Demo Right Now
+- 不同浏览器支持情况不同
+- 不同系统版本效果不同
+- 环境噪音会影响识别结果
+- Safari 和 Chrome 的行为不完全一致
+- 部分浏览器可能根本不支持语音识别
 
-This branch is safe for a client demo when the goal is:
-- show AR image tracking
-- show the stickman appearing in AR
-- show two reliable actions
-- show voice-triggered action switching
-- show that an AI intent layer can sit on top of fixed actions
+当前项目已经做了处理：
 
-## What Is Not Yet Production-Ready
+- 不支持时自动禁用语音按钮
+- 仍可通过按钮继续演示
 
-This branch is **not** yet production-ready for wide public rollout because:
-- models are too heavy for many mobile devices
-- action library is still small
-- voice intent is still limited to a narrow action set
-- there is no asset compression pipeline yet
-- there is no device-adaptive quality strategy yet
+### 5. Kimi 意图层依赖网络和环境变量
 
-## Recommended Next Optimization Steps
+如果以下任一环节有问题：
 
-Before public rollout, the highest-value work is:
+- 网络异常
+- Moonshot 接口异常
+- Vercel 服务异常
+- 环境变量未配置
 
-1. reduce polygon count
-2. compress textures
-3. keep one consistent skeleton for all actions
-4. add more actions without changing the intent contract
-5. introduce device-tier quality fallback
-6. optionally precompress GLB assets with mesh and texture optimization
+则 Kimi 可能不可用。
 
-## Validation Checklist
+当前项目的处理方式是：
 
-Before showing a client, verify:
+- 自动回退到本地关键词识别
+- 不让 AI 失败直接拖垮现场演示
 
-1. page opens over HTTPS
-2. camera permission is granted
-3. target image is recognized reliably
-4. greeting action plays after reveal
-5. button-triggered `打招呼` works
-6. button-triggered `跳舞` works
-7. voice trigger works when Kimi is available
-8. local fallback still works when Kimi is unavailable
+## 当前版本适合什么场景
 
-## Current Status
+适合：
 
-This branch now includes:
-- clean stickman-only AR project structure
-- improved lighting for better material presentation
-- two-action animation system
-- browser voice capture
-- Kimi intent classification layer
-- local keyword fallback for demo stability
+- 客户演示
+- 技术验证
+- 动作交互方案评审
+- 后续更多动作扩展的基础版本
+
+暂时不适合：
+
+- 面向大量真实用户的正式上线版本
+- 长时间连续运行的高稳定商用版本
+- 多角色、多复杂动作同时在线版本
+
+## 正式上线前建议优化
+
+正式上线前，建议优先做这几项：
+
+1. 降低模型面数
+2. 压缩贴图尺寸
+3. 保持所有动作共用同一套骨骼
+4. 增加更多动作，但继续维持固定动作 ID 契约
+5. 做设备分级质量策略
+6. 对 GLB 做进一步压缩优化
+7. 增加一个更稳定、更自然的高质量 `idle` 待机动作
+
+## 演示前检查清单
+
+演示前建议实际确认：
+
+1. 页面必须通过 HTTPS 打开
+2. 相机权限已允许
+3. 目标图能稳定识别
+4. 火柴人出场正常
+5. 默认待机正常
+6. 自动打招呼正常
+7. 按钮触发 `打招呼` 正常
+8. 按钮触发 `跳舞` 正常
+9. 语音触发动作正常
+10. Kimi 不可用时，本地关键词兜底正常
+
+## 当前状态总结
+
+当前分支已经具备：
+
+- 火柴人独立 WebAR 项目结构
+- 质感增强后的模型光照
+- `idle + greeting + dancing` 三动作结构
+- 平滑动作切换
+- 浏览器语音输入
+- Kimi 意图分类
+- 本地关键词兜底
+
+这已经可以作为一个比较完整的火柴人 AR 动作交互 Demo 使用。
