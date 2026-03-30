@@ -61,15 +61,8 @@ lowLight.position.set(0, 0.35, 1.1);
 scene.add(lowLight);
 
 const anchor = mindARThree.addAnchor(0);
-const contentRoot = new THREE.Group();
-contentRoot.visible = false;
-scene.add(contentRoot);
-
 const loader = new GLTFLoader();
 const clock = new THREE.Clock();
-const anchorPosition = new THREE.Vector3();
-const anchorQuaternion = new THREE.Quaternion();
-const anchorScale = new THREE.Vector3();
 
 let animationFrameId = null;
 let modelRoot;
@@ -85,7 +78,6 @@ let activeActionKey = ACTION_KEYS.IDLE;
 let actionsLoaded = false;
 let lastRecognizedTranscript = "";
 let idleAction = null;
-let activationLocked = false;
 
 const actionClips = new Map();
 const actionInstances = new Map();
@@ -102,7 +94,7 @@ const pedestal = new THREE.Mesh(
 );
 pedestal.position.y = 0.02;
 pedestal.visible = false;
-contentRoot.add(pedestal);
+anchor.group.add(pedestal);
 
 const glowRing = new THREE.Mesh(
   new THREE.RingGeometry(0.16, 0.25, 72),
@@ -118,7 +110,7 @@ const glowRing = new THREE.Mesh(
 glowRing.rotation.x = -Math.PI / 2;
 glowRing.position.y = 0.045;
 glowRing.visible = false;
-contentRoot.add(glowRing);
+anchor.group.add(glowRing);
 
 const aura = new THREE.Mesh(
   new THREE.CylinderGeometry(0.11, 0.18, 0.55, 40, 1, true),
@@ -133,7 +125,7 @@ const aura = new THREE.Mesh(
 );
 aura.position.y = 0.31;
 aura.visible = false;
-contentRoot.add(aura);
+anchor.group.add(aura);
 
 const setStatus = (text) => {
   statusText.textContent = text;
@@ -324,15 +316,6 @@ const resetRevealFx = () => {
   glowRing.scale.setScalar(1);
   aura.material.opacity = 0;
   pedestal.material.emissiveIntensity = 0.6;
-};
-
-const lockContentToAnchor = () => {
-  anchor.group.updateWorldMatrix(true, false);
-  anchor.group.matrixWorld.decompose(anchorPosition, anchorQuaternion, anchorScale);
-  contentRoot.position.copy(anchorPosition);
-  contentRoot.quaternion.copy(anchorQuaternion);
-  contentRoot.scale.copy(anchorScale);
-  contentRoot.visible = true;
 };
 
 const ensureActionInstance = (actionKey) => {
@@ -533,7 +516,7 @@ const loadStickmanAssets = async () => {
   modelRoot.scale.setScalar(modelScale);
 
   applyMaterialTuning(modelRoot);
-  contentRoot.add(modelRoot);
+  anchor.group.add(modelRoot);
 
   mixer = new THREE.AnimationMixer(modelRoot);
   if (idleAsset.animations[0]) {
@@ -566,24 +549,15 @@ loadStickmanAssets().catch((error) => {
 anchor.onTargetFound = () => {
   targetVisible = true;
   resetRevealFx();
-  const firstActivation = !activationLocked;
-
-  if (firstActivation) {
-    lockContentToAnchor();
-    activationLocked = true;
-  }
-
   setIntentDebug({
     source: "idle",
     transcript: "-",
-    action: "已激活",
-    detail: "已锁定当前位置，可移开目标图继续观看"
+    action: "目标已识别",
+    detail: "等待火柴人完成出场"
   });
 
-  if (actionsLoaded && firstActivation) {
+  if (actionsLoaded) {
     switchStage(STAGE.REVEAL);
-  } else if (actionsLoaded) {
-    setStatus("AR 已激活，可继续移动手机观看");
   } else {
     setStatus("目标已识别，正在加载火柴人模型...");
   }
@@ -591,33 +565,9 @@ anchor.onTargetFound = () => {
 
 anchor.onTargetLost = () => {
   targetVisible = false;
-
-  if (activationLocked) {
-    contentRoot.visible = true;
-    controlPanel.classList.remove("hidden");
-    updateVoiceUi({ hint: "已激活，可自由移动手机继续观看与交互" });
-    if (stage === STAGE.READY) {
-      setControlsEnabled(true);
-      setStatus("AR 已激活，可移开目标图继续观看");
-    } else if (stage === STAGE.ACTION) {
-      setControlsEnabled(false);
-      setStatus("AR 已激活，当前动作继续播放");
-    } else {
-      setStatus("AR 已激活，正在完成出场动画");
-    }
-    setIntentDebug({
-      source: "idle",
-      transcript: "-",
-      action: "已激活",
-      detail: "目标图已离开画面，但角色保持显示"
-    });
-    return;
-  }
-
   stage = STAGE.IDLE;
   stageElapsed = 0;
   resetRevealFx();
-  contentRoot.visible = false;
   controlPanel.classList.remove("hidden");
   setControlsEnabled(false);
   if (modelRoot) {
@@ -650,8 +600,6 @@ const start = async () => {
   try {
     await mindARThree.start();
     startButton.classList.add("hidden");
-    activationLocked = false;
-    contentRoot.visible = false;
     controlPanel.classList.remove("hidden");
     setControlsEnabled(false);
     updateVoiceUi({ hint: "等待识别目标图后启用语音和动作按钮" });
@@ -674,7 +622,7 @@ startButton.addEventListener("click", start);
 
 for (const button of actionButtons) {
   button.addEventListener("click", () => {
-    if (!activationLocked || stage === STAGE.REVEAL) return;
+    if (!targetVisible || stage === STAGE.REVEAL) return;
     setIntentDebug({
       source: "manual",
       transcript: "-",
@@ -691,8 +639,8 @@ if (voiceButton) {
       updateVoiceUi();
       return;
     }
-    if (!activationLocked || stage === STAGE.REVEAL) {
-      setStatus("请先扫描目标图完成激活");
+    if (!targetVisible || stage === STAGE.REVEAL) {
+      setStatus("请先扫描目标图，等待火柴人出现");
       return;
     }
     if (voiceListening) {
@@ -760,11 +708,7 @@ const loop = () => {
   const dt = Math.min(clock.getDelta(), 0.05);
   stageElapsed += dt;
 
-  if (targetVisible && !activationLocked) {
-    lockContentToAnchor();
-  }
-
-  if (activationLocked || targetVisible) {
+  if (targetVisible) {
     if (stage === STAGE.REVEAL) animateReveal(stageElapsed);
     if (stage === STAGE.READY) animateReady(stageElapsed, dt);
     if (stage === STAGE.ACTION) animateAction(stageElapsed, dt);
