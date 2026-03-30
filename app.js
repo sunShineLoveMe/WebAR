@@ -6,7 +6,6 @@ import { MindARThree } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/min
 const container = document.querySelector("#ar-container");
 const statusText = document.querySelector("#status-text");
 const startButton = document.querySelector("#start-btn");
-const activationBanner = document.querySelector("#activation-banner");
 const controlPanel = document.querySelector("#control-panel");
 const voiceButton = document.querySelector("#voice-btn");
 const voiceHint = document.querySelector("#voice-hint");
@@ -138,14 +137,6 @@ contentRoot.add(aura);
 
 const setStatus = (text) => {
   statusText.textContent = text;
-};
-
-const setActivationBanner = ({ visible, text } = {}) => {
-  if (!activationBanner) return;
-  if (typeof text === "string") {
-    activationBanner.textContent = text;
-  }
-  activationBanner.classList.toggle("hidden", !visible);
 };
 
 const actionLabel = (actionKey) => {
@@ -568,7 +559,6 @@ const loadStickmanAssets = async () => {
 loadStickmanAssets().catch((error) => {
   console.error("Failed to load stickman assets", error);
   setStatus("模型加载失败，请检查火柴人 GLB 文件");
-  setActivationBanner({ visible: false });
   controlPanel.classList.remove("hidden");
   setControlsEnabled(false);
 });
@@ -589,10 +579,6 @@ anchor.onTargetFound = () => {
     action: "已激活",
     detail: "已锁定当前位置，可移开目标图继续观看"
   });
-  setActivationBanner({
-    visible: true,
-    text: "已激活，可移开二维码继续观看与交互"
-  });
 
   if (actionsLoaded && firstActivation) {
     switchStage(STAGE.REVEAL);
@@ -608,10 +594,6 @@ anchor.onTargetLost = () => {
 
   if (activationLocked) {
     contentRoot.visible = true;
-    setActivationBanner({
-      visible: true,
-      text: "已激活，可移开二维码继续观看与交互"
-    });
     controlPanel.classList.remove("hidden");
     updateVoiceUi({ hint: "已激活，可自由移动手机继续观看与交互" });
     if (stage === STAGE.READY) {
@@ -636,7 +618,6 @@ anchor.onTargetLost = () => {
   stageElapsed = 0;
   resetRevealFx();
   contentRoot.visible = false;
-  setActivationBanner({ visible: false });
   controlPanel.classList.remove("hidden");
   setControlsEnabled(false);
   if (modelRoot) {
@@ -671,7 +652,6 @@ const start = async () => {
     startButton.classList.add("hidden");
     activationLocked = false;
     contentRoot.visible = false;
-    setActivationBanner({ visible: false });
     controlPanel.classList.remove("hidden");
     setControlsEnabled(false);
     updateVoiceUi({ hint: "等待识别目标图后启用语音和动作按钮" });
