@@ -85,11 +85,11 @@ const actionInstances = new Map();
 const orbClusters = [];
 
 const ORB_CONFIGS = [
-  { hue: 0.0, saturation: 0.02, lightness: 0.88, radius: 0.065, distance: 0.14, phase: 0.0, speed: 0.42 },
-  { hue: 0.6, saturation: 0.96, lightness: 0.62, radius: 0.076, distance: 0.2, phase: 1.25, speed: 0.58 },
-  { hue: 0.5, saturation: 0.98, lightness: 0.6, radius: 0.07, distance: 0.22, phase: 2.1, speed: 0.62 },
-  { hue: 0.3, saturation: 0.94, lightness: 0.58, radius: 0.074, distance: 0.25, phase: 3.05, speed: 0.54 },
-  { hue: 0.7, saturation: 0.92, lightness: 0.62, radius: 0.078, distance: 0.23, phase: 4.2, speed: 0.66 }
+  { hue: 0.0, saturation: 0.02, lightness: 0.88, radius: 0.065, distance: 0.12, phase: 0.0, speed: 0.42, baseY: 0.05 },
+  { hue: 0.6, saturation: 0.96, lightness: 0.62, radius: 0.076, distance: 0.18, phase: 1.25, speed: 0.58, baseY: 0.08 },
+  { hue: 0.5, saturation: 0.98, lightness: 0.6, radius: 0.07, distance: 0.19, phase: 2.1, speed: 0.62, baseY: 0.04 },
+  { hue: 0.3, saturation: 0.94, lightness: 0.58, radius: 0.074, distance: 0.2, phase: 3.05, speed: 0.54, baseY: 0.09 },
+  { hue: 0.7, saturation: 0.92, lightness: 0.62, radius: 0.078, distance: 0.19, phase: 4.2, speed: 0.66, baseY: 0.02 }
 ];
 
 const pedestal = new THREE.Mesh(
@@ -139,7 +139,7 @@ anchor.group.add(aura);
 
 const orbSwarmRoot = new THREE.Group();
 orbSwarmRoot.visible = false;
-orbSwarmRoot.position.set(0, 0.36, 0);
+orbSwarmRoot.position.set(0, 0.74, 0);
 anchor.group.add(orbSwarmRoot);
 
 const setStatus = (text) => {
@@ -405,16 +405,16 @@ const updateOrbSwarm = (elapsed) => {
   for (let clusterIndex = 0; clusterIndex < orbClusters.length; clusterIndex += 1) {
     const cluster = orbClusters[clusterIndex];
     const { config, geometry, positions, colors, baseOffsets, color, points } = cluster;
-    const { distance, phase, speed, hue, saturation, lightness } = config;
+    const { distance, phase, speed, hue, saturation, lightness, baseY } = config;
 
     let cx = Math.sin(elapsed * speed * 0.7 + phase) * distance;
-    let cy = Math.cos(elapsed * speed * 0.5 + phase * 1.5) * distance * 0.46;
+    let cy = Math.cos(elapsed * speed * 0.5 + phase * 1.5) * distance * 0.22 + baseY;
     let cz = Math.sin(elapsed * speed * 0.9 + phase * 2.1) * distance * 0.45;
 
     if (clusterIndex === 0) {
-      cx = Math.sin(elapsed * 0.45) * 0.025;
-      cy = Math.cos(elapsed * 0.38) * 0.02 + 0.025;
-      cz = distance * 0.82;
+      cx = Math.sin(elapsed * 0.45) * 0.02;
+      cy = Math.cos(elapsed * 0.38) * 0.012 + 0.09;
+      cz = distance * 0.88;
     }
 
     points.position.set(cx, cy, cz);
