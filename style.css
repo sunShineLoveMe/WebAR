@@ -64,6 +64,7 @@ body {
 .eyebrow,
 .overlay-card h1,
 .overlay-card p,
+.activation-banner,
 #start-btn,
 .control-panel {
   position: relative;
@@ -89,6 +90,21 @@ body {
   color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.35;
+}
+
+.activation-banner {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #031520;
+  background: linear-gradient(135deg, rgba(103, 238, 194, 0.98), rgba(112, 216, 255, 0.94));
+  box-shadow: 0 10px 22px rgba(78, 209, 224, 0.24);
+}
+
+.activation-banner.hidden {
+  display: none;
 }
 
 #start-btn,
