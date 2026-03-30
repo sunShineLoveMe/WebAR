@@ -9,6 +9,9 @@ const startButton = document.querySelector("#start-btn");
 const controlPanel = document.querySelector("#control-panel");
 const voiceButton = document.querySelector("#voice-btn");
 const voiceHint = document.querySelector("#voice-hint");
+const intentSourceBadge = document.querySelector("#intent-source-badge");
+const intentTranscript = document.querySelector("#intent-transcript");
+const intentAction = document.querySelector("#intent-action");
 const actionButtons = Array.from(document.querySelectorAll(".action-btn"));
 
 const STAGE = {
@@ -128,6 +131,44 @@ const setStatus = (text) => {
   statusText.textContent = text;
 };
 
+const actionLabel = (actionKey) => {
+  if (actionKey === ACTION_KEYS.IDLE) return "待机";
+  if (actionKey === ACTION_KEYS.GREETING) return "打招呼";
+  if (actionKey === ACTION_KEYS.DANCING) return "跳舞";
+  return "未识别";
+};
+
+const setIntentDebug = ({ source = "idle", transcript = "-", action = "-", detail } = {}) => {
+  if (!intentSourceBadge || !intentTranscript || !intentAction) return;
+
+  intentSourceBadge.classList.remove(
+    "intent-badge--idle",
+    "intent-badge--kimi",
+    "intent-badge--fallback",
+    "intent-badge--error"
+  );
+
+  if (source === "kimi") {
+    intentSourceBadge.textContent = "Kimi";
+    intentSourceBadge.classList.add("intent-badge--kimi");
+  } else if (source === "manual") {
+    intentSourceBadge.textContent = "手动按钮";
+    intentSourceBadge.classList.add("intent-badge--idle");
+  } else if (source === "fallback") {
+    intentSourceBadge.textContent = "本地兜底";
+    intentSourceBadge.classList.add("intent-badge--fallback");
+  } else if (source === "error") {
+    intentSourceBadge.textContent = "识别失败";
+    intentSourceBadge.classList.add("intent-badge--error");
+  } else {
+    intentSourceBadge.textContent = "未触发";
+    intentSourceBadge.classList.add("intent-badge--idle");
+  }
+
+  intentTranscript.textContent = `识别文本：${transcript || "-"}`;
+  intentAction.textContent = `动作结果：${action}${detail ? `（${detail}）` : ""}`;
+};
+
 const setActiveButton = (actionKey) => {
   for (const button of actionButtons) {
     button.classList.toggle("active", button.dataset.action === actionKey);
@@ -190,6 +231,12 @@ const handleTranscript = async (transcript) => {
   updateVoiceUi({ listening: false, hint: `识别到：${transcript}` });
   setStatus(`识别中：${transcript}`);
   setControlsEnabled(false);
+  setIntentDebug({
+    source: "idle",
+    transcript,
+    action: "识别中",
+    detail: "等待 Kimi 返回"
+  });
 
   try {
     const payload = await resolveIntentWithKimi(transcript);
@@ -202,6 +249,12 @@ const handleTranscript = async (transcript) => {
           : null;
 
     if (actionKey) {
+      setIntentDebug({
+        source: "kimi",
+        transcript,
+        action: actionLabel(actionKey),
+        detail: payload?.reply || "Kimi 意图识别"
+      });
       setStatus(
         payload?.reply ||
         (actionKey === ACTION_KEYS.DANCING
@@ -215,10 +268,22 @@ const handleTranscript = async (transcript) => {
     }
   } catch (error) {
     console.warn("Kimi intent failed, fallback to local keyword mapping", error);
+    setIntentDebug({
+      source: "error",
+      transcript,
+      action: "Kimi 失败",
+      detail: error instanceof Error ? error.message : "请求失败"
+    });
   }
 
   const fallbackAction = inferLocalAction(transcript);
   if (fallbackAction) {
+    setIntentDebug({
+      source: "fallback",
+      transcript,
+      action: actionLabel(fallbackAction),
+      detail: "本地关键词兜底"
+    });
     setStatus(
       `本地识别：${
         fallbackAction === ACTION_KEYS.DANCING
@@ -235,6 +300,12 @@ const handleTranscript = async (transcript) => {
   setControlsEnabled(true);
   setStatus(`未识别动作：${transcript}`);
   updateVoiceUi({ listening: false, hint: "未匹配动作，可说“打招呼”或“跳舞”" });
+  setIntentDebug({
+    source: "error",
+    transcript,
+    action: "未识别",
+    detail: "Kimi 与本地兜底都未命中"
+  });
 };
 
 const resetRevealFx = () => {
@@ -404,6 +475,12 @@ const initVoiceRecognition = () => {
     updateVoiceUi({ listening: false, hint: "语音触发失败，请改用按钮" });
     setStatus(event?.error ? `语音识别失败：${event.error}` : "语音识别失败，请重试");
     setControlsEnabled(true);
+    setIntentDebug({
+      source: "error",
+      transcript: lastRecognizedTranscript || "-",
+      action: "语音识别失败",
+      detail: event?.error || "浏览器语音识别失败"
+    });
   };
 
   recognition.onend = () => {
@@ -521,6 +598,12 @@ startButton.addEventListener("click", start);
 for (const button of actionButtons) {
   button.addEventListener("click", () => {
     if (!targetVisible || stage === STAGE.REVEAL) return;
+    setIntentDebug({
+      source: "manual",
+      transcript: "-",
+      action: actionLabel(button.dataset.action),
+      detail: "手动按钮触发"
+    });
     playAction(button.dataset.action, { force: true });
   });
 }
@@ -545,6 +628,7 @@ if (voiceButton) {
 
 initVoiceRecognition();
 setControlsEnabled(false);
+setIntentDebug();
 
 const animateReveal = (elapsed) => {
   const progress = Math.min(elapsed / 0.9, 1);

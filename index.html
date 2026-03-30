@@ -24,6 +24,14 @@
         <p id="status-text">扫描图片目标，查看火柴人动作演示</p>
         <button id="start-btn" type="button">启动 AR</button>
         <div class="control-panel hidden" id="control-panel">
+          <div class="intent-debug" id="intent-debug">
+            <div class="intent-debug-head">
+              <span class="intent-debug-label">本次识别来源</span>
+              <span class="intent-badge intent-badge--idle" id="intent-source-badge">未触发</span>
+            </div>
+            <p class="intent-debug-text" id="intent-transcript">识别文本：-</p>
+            <p class="intent-debug-text" id="intent-action">动作结果：-</p>
+          </div>
           <div class="action-list">
             <button class="action-btn" type="button" data-action="idle">待机</button>
             <button class="action-btn" type="button" data-action="greeting">打招呼</button>

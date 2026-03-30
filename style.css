@@ -121,6 +121,67 @@ body {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.intent-debug {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(7, 15, 29, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.intent-debug-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.intent-debug-label {
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  color: #9fb8d8;
+}
+
+.intent-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.intent-badge--idle {
+  color: #d5e3f5;
+  background: rgba(91, 111, 143, 0.34);
+  border: 1px solid rgba(165, 187, 221, 0.22);
+}
+
+.intent-badge--kimi {
+  color: #041521;
+  background: linear-gradient(135deg, rgba(103, 238, 194, 0.98), rgba(112, 216, 255, 0.95));
+}
+
+.intent-badge--fallback {
+  color: #1f1100;
+  background: linear-gradient(135deg, rgba(255, 198, 112, 0.98), rgba(255, 146, 91, 0.95));
+}
+
+.intent-badge--error {
+  color: #fff1f3;
+  background: linear-gradient(135deg, rgba(211, 74, 113, 0.98), rgba(255, 132, 92, 0.94));
+}
+
+.intent-debug-text {
+  margin-top: 4px;
+  font-size: 0.74rem;
+  color: #c9d8ea;
+  word-break: break-word;
+}
+
 .action-list {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
