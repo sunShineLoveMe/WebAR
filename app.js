@@ -400,8 +400,9 @@ const switchStage = (nextStage) => {
     pedestal.visible = true;
     glowRing.visible = true;
     aura.visible = true;
-    controlPanel.classList.add("hidden");
+    controlPanel.classList.remove("hidden");
     setControlsEnabled(false);
+    updateVoiceUi({ hint: "目标已识别，正在准备动作控制" });
 
     if (modelRoot) {
       modelRoot.visible = true;
@@ -541,11 +542,19 @@ const loadStickmanAssets = async () => {
 loadStickmanAssets().catch((error) => {
   console.error("Failed to load stickman assets", error);
   setStatus("模型加载失败，请检查火柴人 GLB 文件");
+  controlPanel.classList.remove("hidden");
+  setControlsEnabled(false);
 });
 
 anchor.onTargetFound = () => {
   targetVisible = true;
   resetRevealFx();
+  setIntentDebug({
+    source: "idle",
+    transcript: "-",
+    action: "目标已识别",
+    detail: "等待火柴人完成出场"
+  });
 
   if (actionsLoaded) {
     switchStage(STAGE.REVEAL);
@@ -559,7 +568,7 @@ anchor.onTargetLost = () => {
   stage = STAGE.IDLE;
   stageElapsed = 0;
   resetRevealFx();
-  controlPanel.classList.add("hidden");
+  controlPanel.classList.remove("hidden");
   setControlsEnabled(false);
   if (modelRoot) {
     modelRoot.visible = false;
@@ -569,6 +578,13 @@ anchor.onTargetLost = () => {
   }
   activeActionKey = ACTION_KEYS.IDLE;
   setStatus("扫描图片目标，查看火柴人动作演示");
+  updateVoiceUi({ hint: "等待识别目标图后启用语音和动作按钮" });
+  setIntentDebug({
+    source: "idle",
+    transcript: "-",
+    action: "等待识别目标图",
+    detail: "识别成功后显示本次动作来源"
+  });
 };
 
 const start = async () => {
@@ -584,6 +600,15 @@ const start = async () => {
   try {
     await mindARThree.start();
     startButton.classList.add("hidden");
+    controlPanel.classList.remove("hidden");
+    setControlsEnabled(false);
+    updateVoiceUi({ hint: "等待识别目标图后启用语音和动作按钮" });
+    setIntentDebug({
+      source: "idle",
+      transcript: "-",
+      action: "等待识别目标图",
+      detail: "识别成功后显示 Kimi 或本地兜底"
+    });
     setStatus("扫描图片目标，查看火柴人动作演示");
     loop();
   } catch (error) {
