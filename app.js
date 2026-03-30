@@ -71,12 +71,6 @@ const clock = new THREE.Clock();
 const anchorPosition = new THREE.Vector3();
 const anchorQuaternion = new THREE.Quaternion();
 const anchorScale = new THREE.Vector3();
-const cameraPosition = new THREE.Vector3();
-const cameraDirection = new THREE.Vector3();
-const presentationPosition = new THREE.Vector3();
-const presentationScale = new THREE.Vector3(1, 1, 1);
-const presentationEuler = new THREE.Euler();
-const presentationQuaternion = new THREE.Quaternion();
 
 let animationFrameId = null;
 let modelRoot;
@@ -350,31 +344,6 @@ const lockContentToAnchor = () => {
   contentRoot.visible = true;
 };
 
-const computePresentationPose = () => {
-  camera.updateWorldMatrix(true, false);
-  camera.getWorldPosition(cameraPosition);
-  camera.getWorldDirection(cameraDirection);
-
-  presentationPosition.copy(cameraPosition).add(cameraDirection.multiplyScalar(0.82));
-  presentationPosition.y -= 0.16;
-
-  presentationEuler.setFromQuaternion(camera.quaternion, "YXZ");
-  presentationQuaternion.setFromEuler(new THREE.Euler(0, presentationEuler.y + Math.PI, 0));
-};
-
-const placeContentForViewing = (progress = 1) => {
-  if (progress >= 1) {
-    contentRoot.position.copy(presentationPosition);
-    contentRoot.quaternion.copy(presentationQuaternion);
-    contentRoot.scale.copy(presentationScale);
-    return;
-  }
-
-  contentRoot.position.lerpVectors(anchorPosition, presentationPosition, progress);
-  THREE.Quaternion.slerp(anchorQuaternion, presentationQuaternion, contentRoot.quaternion, progress);
-  contentRoot.scale.lerpVectors(anchorScale, presentationScale, progress);
-};
-
 const ensureActionInstance = (actionKey) => {
   if (!mixer) return null;
   if (actionInstances.has(actionKey)) return actionInstances.get(actionKey);
@@ -568,7 +537,7 @@ const loadStickmanAssets = async () => {
   modelRoot.position.y -= box.min.y;
   modelRoot.position.z -= center.z;
 
-  const targetHeight = 0.34;
+  const targetHeight = 0.42;
   modelScale = targetHeight / Math.max(size.y, 0.001);
   modelRoot.scale.setScalar(modelScale);
 
@@ -611,7 +580,6 @@ anchor.onTargetFound = () => {
 
   if (firstActivation) {
     lockContentToAnchor();
-    computePresentationPose();
     activationLocked = true;
   }
 
@@ -629,7 +597,7 @@ anchor.onTargetFound = () => {
   if (actionsLoaded && firstActivation) {
     switchStage(STAGE.REVEAL);
   } else if (actionsLoaded) {
-    setStatus("AR 已激活，模型已切换到便于观看的演示位置");
+    setStatus("AR 已激活，可继续移动手机观看");
   } else {
     setStatus("目标已识别，正在加载火柴人模型...");
   }
@@ -763,8 +731,6 @@ const animateReveal = (elapsed) => {
   const progress = Math.min(elapsed / 0.9, 1);
   const eased = 1 - Math.pow(1 - progress, 3);
 
-  placeContentForViewing(eased);
-
   pedestal.material.emissiveIntensity = 0.6 + progress * 1.1;
   glowRing.material.opacity = 0.18 + progress * 0.5;
   glowRing.scale.setScalar(1 + progress * 1.25);
@@ -776,13 +742,12 @@ const animateReveal = (elapsed) => {
   }
 
   if (progress >= 1) {
-    placeContentForViewing(1);
     if (modelRoot) {
       modelRoot.scale.setScalar(modelScale);
     }
     playIdle({ immediate: true });
     setTimeout(() => {
-      if (activationLocked) playAction(ACTION_KEYS.GREETING, { force: true });
+      if (targetVisible) playAction(ACTION_KEYS.GREETING, { force: true });
     }, 240);
   }
 };
