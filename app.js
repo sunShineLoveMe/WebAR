@@ -355,8 +355,8 @@ const computePresentationPose = () => {
   camera.getWorldPosition(cameraPosition);
   camera.getWorldDirection(cameraDirection);
 
-  presentationPosition.copy(cameraPosition).add(cameraDirection.multiplyScalar(0.62));
-  presentationPosition.y -= 0.08;
+  presentationPosition.copy(cameraPosition).add(cameraDirection.multiplyScalar(0.82));
+  presentationPosition.y -= 0.16;
 
   presentationEuler.setFromQuaternion(camera.quaternion, "YXZ");
   presentationQuaternion.setFromEuler(new THREE.Euler(0, presentationEuler.y + Math.PI, 0));
@@ -371,7 +371,7 @@ const placeContentForViewing = (progress = 1) => {
   }
 
   contentRoot.position.lerpVectors(anchorPosition, presentationPosition, progress);
-  contentRoot.quaternion.copy(anchorQuaternion).slerp(presentationQuaternion, progress);
+  THREE.Quaternion.slerp(anchorQuaternion, presentationQuaternion, contentRoot.quaternion, progress);
   contentRoot.scale.lerpVectors(anchorScale, presentationScale, progress);
 };
 
