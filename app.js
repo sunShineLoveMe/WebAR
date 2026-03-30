@@ -70,6 +70,7 @@ let mixer;
 let modelScale = 1;
 let stage = STAGE.IDLE;
 let stageElapsed = 0;
+let effectElapsed = 0;
 let targetVisible = false;
 let voiceSupported = false;
 let voiceListening = false;
@@ -81,6 +82,15 @@ let idleAction = null;
 
 const actionClips = new Map();
 const actionInstances = new Map();
+const orbClusters = [];
+
+const ORB_CONFIGS = [
+  { hue: 0.0, saturation: 0.0, lightness: 0.82, radius: 0.04, distance: 0.13, phase: 0.0, speed: 0.42 },
+  { hue: 0.6, saturation: 0.82, lightness: 0.56, radius: 0.048, distance: 0.19, phase: 1.25, speed: 0.58 },
+  { hue: 0.5, saturation: 0.86, lightness: 0.54, radius: 0.043, distance: 0.21, phase: 2.1, speed: 0.62 },
+  { hue: 0.3, saturation: 0.8, lightness: 0.52, radius: 0.046, distance: 0.24, phase: 3.05, speed: 0.54 },
+  { hue: 0.7, saturation: 0.78, lightness: 0.56, radius: 0.05, distance: 0.22, phase: 4.2, speed: 0.66 }
+];
 
 const pedestal = new THREE.Mesh(
   new THREE.CylinderGeometry(0.24, 0.28, 0.045, 48),
@@ -126,6 +136,11 @@ const aura = new THREE.Mesh(
 aura.position.y = 0.31;
 aura.visible = false;
 anchor.group.add(aura);
+
+const orbSwarmRoot = new THREE.Group();
+orbSwarmRoot.visible = false;
+orbSwarmRoot.position.set(0, 0.22, 0);
+anchor.group.add(orbSwarmRoot);
 
 const setStatus = (text) => {
   statusText.textContent = text;
@@ -312,10 +327,117 @@ const resetRevealFx = () => {
   pedestal.visible = false;
   glowRing.visible = false;
   aura.visible = false;
+  orbSwarmRoot.visible = false;
   glowRing.material.opacity = 0;
   glowRing.scale.setScalar(1);
   aura.material.opacity = 0;
   pedestal.material.emissiveIntensity = 0.6;
+};
+
+const fibonacciPoint = (index, total, radius) => {
+  const phi = Math.acos(-1 + (2 * index) / total);
+  const theta = Math.sqrt(total * Math.PI) * phi;
+  return new THREE.Vector3(
+    Math.cos(theta) * Math.sin(phi) * radius,
+    Math.sin(theta) * Math.sin(phi) * radius,
+    Math.cos(phi) * radius
+  );
+};
+
+const createOrbCluster = (config, clusterIndex) => {
+  const particleCount = 360;
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const baseOffsets = new Float32Array(particleCount * 3);
+  const color = new THREE.Color();
+
+  for (let i = 0; i < particleCount; i += 1) {
+    const point = fibonacciPoint(i, particleCount, config.radius);
+    baseOffsets[i * 3] = point.x;
+    baseOffsets[i * 3 + 1] = point.y;
+    baseOffsets[i * 3 + 2] = point.z;
+    positions[i * 3] = point.x;
+    positions[i * 3 + 1] = point.y;
+    positions[i * 3 + 2] = point.z;
+
+    color.setHSL(config.hue, config.saturation, config.lightness);
+    colors[i * 3] = color.r;
+    colors[i * 3 + 1] = color.g;
+    colors[i * 3 + 2] = color.b;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: clusterIndex === 0 ? 0.0075 : 0.0065,
+    transparent: true,
+    opacity: clusterIndex === 0 ? 0.92 : 0.86,
+    depthWrite: false,
+    vertexColors: true,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true
+  });
+
+  const points = new THREE.Points(geometry, material);
+  orbSwarmRoot.add(points);
+
+  orbClusters.push({
+    config,
+    geometry,
+    points,
+    positions,
+    colors,
+    baseOffsets,
+    color
+  });
+};
+
+const initOrbSwarm = () => {
+  if (orbClusters.length > 0) return;
+  ORB_CONFIGS.forEach((config, index) => createOrbCluster(config, index));
+};
+
+const updateOrbSwarm = (elapsed) => {
+  if (!orbSwarmRoot.visible) return;
+
+  for (let clusterIndex = 0; clusterIndex < orbClusters.length; clusterIndex += 1) {
+    const cluster = orbClusters[clusterIndex];
+    const { config, geometry, positions, colors, baseOffsets, color, points } = cluster;
+    const { distance, phase, speed, hue, saturation, lightness } = config;
+
+    let cx = Math.sin(elapsed * speed * 0.7 + phase) * distance;
+    let cy = Math.cos(elapsed * speed * 0.5 + phase * 1.5) * distance * 0.72;
+    let cz = Math.sin(elapsed * speed * 0.9 + phase * 2.1) * distance * 0.45;
+
+    if (clusterIndex === 0) {
+      cx = Math.sin(elapsed * 0.45) * 0.025;
+      cy = Math.cos(elapsed * 0.38) * 0.025 + 0.035;
+      cz = distance * 0.82;
+    }
+
+    points.position.set(cx, cy, cz);
+    points.rotation.y = elapsed * (0.18 + clusterIndex * 0.035);
+    points.rotation.x = Math.sin(elapsed * 0.4 + phase) * 0.22;
+
+    const shimmerBase = Math.sin(elapsed * (1.8 + clusterIndex * 0.18)) * 0.08;
+    for (let i = 0; i < positions.length; i += 3) {
+      const pIndex = i / 3;
+      positions[i] = baseOffsets[i];
+      positions[i + 1] = baseOffsets[i + 1];
+      positions[i + 2] = baseOffsets[i + 2];
+
+      const shimmer = shimmerBase + Math.sin(elapsed * 2.4 + pIndex * 0.09 + phase) * 0.05;
+      color.setHSL(hue, saturation, Math.min(0.92, lightness + shimmer));
+      colors[i] = color.r;
+      colors[i + 1] = color.g;
+      colors[i + 2] = color.b;
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+    geometry.attributes.color.needsUpdate = true;
+  }
 };
 
 const ensureActionInstance = (actionKey) => {
@@ -400,6 +522,7 @@ const switchStage = (nextStage) => {
     pedestal.visible = true;
     glowRing.visible = true;
     aura.visible = true;
+    orbSwarmRoot.visible = true;
     controlPanel.classList.remove("hidden");
     setControlsEnabled(false);
     updateVoiceUi({ hint: "目标已识别，正在准备动作控制" });
@@ -492,6 +615,8 @@ const initVoiceRecognition = () => {
 };
 
 const loadStickmanAssets = async () => {
+  initOrbSwarm();
+
   const [idleAsset, greetingAsset, dancingAsset] = await Promise.all([
     loader.loadAsync("./assets/idle_scale.glb"),
     loader.loadAsync("./assets/greeting_scale.glb"),
@@ -549,6 +674,7 @@ loadStickmanAssets().catch((error) => {
 anchor.onTargetFound = () => {
   targetVisible = true;
   resetRevealFx();
+  orbSwarmRoot.visible = true;
   setIntentDebug({
     source: "idle",
     transcript: "-",
@@ -600,6 +726,8 @@ const start = async () => {
   try {
     await mindARThree.start();
     startButton.classList.add("hidden");
+    effectElapsed = 0;
+    orbSwarmRoot.visible = false;
     controlPanel.classList.remove("hidden");
     setControlsEnabled(false);
     updateVoiceUi({ hint: "等待识别目标图后启用语音和动作按钮" });
@@ -669,10 +797,13 @@ const animateReveal = (elapsed) => {
     modelRoot.scale.setScalar(modelScale * (0.001 + eased * 0.999) * pulse);
   }
 
+  orbSwarmRoot.scale.setScalar(0.8 + eased * 0.2);
+
   if (progress >= 1) {
     if (modelRoot) {
       modelRoot.scale.setScalar(modelScale);
     }
+    orbSwarmRoot.scale.setScalar(1);
     playIdle({ immediate: true });
     setTimeout(() => {
       if (targetVisible) playAction(ACTION_KEYS.GREETING, { force: true });
@@ -707,11 +838,13 @@ const animateAction = (elapsed, dt) => {
 const loop = () => {
   const dt = Math.min(clock.getDelta(), 0.05);
   stageElapsed += dt;
+  effectElapsed += dt;
 
   if (targetVisible) {
     if (stage === STAGE.REVEAL) animateReveal(stageElapsed);
     if (stage === STAGE.READY) animateReady(stageElapsed, dt);
     if (stage === STAGE.ACTION) animateAction(stageElapsed, dt);
+    updateOrbSwarm(effectElapsed);
   }
 
   renderer.render(scene, camera);
