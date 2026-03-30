@@ -73,9 +73,9 @@ const anchorQuaternion = new THREE.Quaternion();
 const anchorScale = new THREE.Vector3();
 const cameraPosition = new THREE.Vector3();
 const cameraDirection = new THREE.Vector3();
-const anchorToCamera = new THREE.Vector3();
 const presentationPosition = new THREE.Vector3();
 const presentationScale = new THREE.Vector3(1, 1, 1);
+const presentationEuler = new THREE.Euler();
 const presentationQuaternion = new THREE.Quaternion();
 
 let animationFrameId = null;
@@ -353,18 +353,13 @@ const lockContentToAnchor = () => {
 const computePresentationPose = () => {
   camera.updateWorldMatrix(true, false);
   camera.getWorldPosition(cameraPosition);
-  anchorToCamera.subVectors(cameraPosition, anchorPosition).normalize();
-
-  presentationPosition.copy(anchorPosition);
-  presentationPosition.y += Math.max(anchorScale.y * 0.18, 0.08);
-  presentationPosition.addScaledVector(anchorToCamera, 0.04);
-
-  presentationQuaternion.copy(anchorQuaternion);
   camera.getWorldDirection(cameraDirection);
-  presentationQuaternion.multiply(
-    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI)
-  );
-  presentationScale.copy(anchorScale).multiplyScalar(0.62);
+
+  presentationPosition.copy(cameraPosition).add(cameraDirection.multiplyScalar(0.62));
+  presentationPosition.y -= 0.08;
+
+  presentationEuler.setFromQuaternion(camera.quaternion, "YXZ");
+  presentationQuaternion.setFromEuler(new THREE.Euler(0, presentationEuler.y + Math.PI, 0));
 };
 
 const placeContentForViewing = (progress = 1) => {
