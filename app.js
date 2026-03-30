@@ -85,11 +85,11 @@ const actionInstances = new Map();
 const orbClusters = [];
 
 const ORB_CONFIGS = [
-  { hue: 0.0, saturation: 0.0, lightness: 0.82, radius: 0.04, distance: 0.13, phase: 0.0, speed: 0.42 },
-  { hue: 0.6, saturation: 0.82, lightness: 0.56, radius: 0.048, distance: 0.19, phase: 1.25, speed: 0.58 },
-  { hue: 0.5, saturation: 0.86, lightness: 0.54, radius: 0.043, distance: 0.21, phase: 2.1, speed: 0.62 },
-  { hue: 0.3, saturation: 0.8, lightness: 0.52, radius: 0.046, distance: 0.24, phase: 3.05, speed: 0.54 },
-  { hue: 0.7, saturation: 0.78, lightness: 0.56, radius: 0.05, distance: 0.22, phase: 4.2, speed: 0.66 }
+  { hue: 0.0, saturation: 0.02, lightness: 0.88, radius: 0.065, distance: 0.14, phase: 0.0, speed: 0.42 },
+  { hue: 0.6, saturation: 0.96, lightness: 0.62, radius: 0.076, distance: 0.2, phase: 1.25, speed: 0.58 },
+  { hue: 0.5, saturation: 0.98, lightness: 0.6, radius: 0.07, distance: 0.22, phase: 2.1, speed: 0.62 },
+  { hue: 0.3, saturation: 0.94, lightness: 0.58, radius: 0.074, distance: 0.25, phase: 3.05, speed: 0.54 },
+  { hue: 0.7, saturation: 0.92, lightness: 0.62, radius: 0.078, distance: 0.23, phase: 4.2, speed: 0.66 }
 ];
 
 const pedestal = new THREE.Mesh(
@@ -139,7 +139,7 @@ anchor.group.add(aura);
 
 const orbSwarmRoot = new THREE.Group();
 orbSwarmRoot.visible = false;
-orbSwarmRoot.position.set(0, 0.22, 0);
+orbSwarmRoot.position.set(0, 0.36, 0);
 anchor.group.add(orbSwarmRoot);
 
 const setStatus = (text) => {
@@ -345,7 +345,7 @@ const fibonacciPoint = (index, total, radius) => {
 };
 
 const createOrbCluster = (config, clusterIndex) => {
-  const particleCount = 360;
+  const particleCount = 640;
   const positions = new Float32Array(particleCount * 3);
   const colors = new Float32Array(particleCount * 3);
   const baseOffsets = new Float32Array(particleCount * 3);
@@ -371,9 +371,9 @@ const createOrbCluster = (config, clusterIndex) => {
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.PointsMaterial({
-    size: clusterIndex === 0 ? 0.0075 : 0.0065,
+    size: clusterIndex === 0 ? 0.011 : 0.0095,
     transparent: true,
-    opacity: clusterIndex === 0 ? 0.92 : 0.86,
+    opacity: clusterIndex === 0 ? 0.98 : 0.93,
     depthWrite: false,
     vertexColors: true,
     blending: THREE.AdditiveBlending,
@@ -408,12 +408,12 @@ const updateOrbSwarm = (elapsed) => {
     const { distance, phase, speed, hue, saturation, lightness } = config;
 
     let cx = Math.sin(elapsed * speed * 0.7 + phase) * distance;
-    let cy = Math.cos(elapsed * speed * 0.5 + phase * 1.5) * distance * 0.72;
+    let cy = Math.cos(elapsed * speed * 0.5 + phase * 1.5) * distance * 0.46;
     let cz = Math.sin(elapsed * speed * 0.9 + phase * 2.1) * distance * 0.45;
 
     if (clusterIndex === 0) {
       cx = Math.sin(elapsed * 0.45) * 0.025;
-      cy = Math.cos(elapsed * 0.38) * 0.025 + 0.035;
+      cy = Math.cos(elapsed * 0.38) * 0.02 + 0.025;
       cz = distance * 0.82;
     }
 
@@ -429,7 +429,7 @@ const updateOrbSwarm = (elapsed) => {
       positions[i + 2] = baseOffsets[i + 2];
 
       const shimmer = shimmerBase + Math.sin(elapsed * 2.4 + pIndex * 0.09 + phase) * 0.05;
-      color.setHSL(hue, saturation, Math.min(0.92, lightness + shimmer));
+      color.setHSL(hue, saturation, Math.min(0.97, lightness + shimmer));
       colors[i] = color.r;
       colors[i + 1] = color.g;
       colors[i + 2] = color.b;
