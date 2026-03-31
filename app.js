@@ -27,6 +27,10 @@ const ACTION_KEYS = {
   DANCING: "dancing"
 };
 
+const EFFECT_KEYS = {
+  LIGHT_ORBS: "light_orbs"
+};
+
 const mindARThree = new MindARThree({
   container,
   imageTargetSrc: "./assets/targets.mind"
@@ -79,17 +83,20 @@ let activeActionKey = ACTION_KEYS.IDLE;
 let actionsLoaded = false;
 let lastRecognizedTranscript = "";
 let idleAction = null;
+let orbCharge = 0.42;
+let orbChargeTarget = 0.42;
+let orbChargePulse = 0;
 
 const actionClips = new Map();
 const actionInstances = new Map();
 const orbClusters = [];
 
 const ORB_CONFIGS = [
-  { hue: 0.0, saturation: 0.02, lightness: 0.88, radius: 0.065, distance: 0.12, phase: 0.0, speed: 0.42, baseY: 0.05 },
-  { hue: 0.6, saturation: 0.96, lightness: 0.62, radius: 0.076, distance: 0.18, phase: 1.25, speed: 0.58, baseY: 0.08 },
-  { hue: 0.5, saturation: 0.98, lightness: 0.6, radius: 0.07, distance: 0.19, phase: 2.1, speed: 0.62, baseY: 0.04 },
-  { hue: 0.3, saturation: 0.94, lightness: 0.58, radius: 0.074, distance: 0.2, phase: 3.05, speed: 0.54, baseY: 0.09 },
-  { hue: 0.7, saturation: 0.92, lightness: 0.62, radius: 0.078, distance: 0.19, phase: 4.2, speed: 0.66, baseY: 0.02 }
+  { hue: 0.0, saturation: 0.04, lightness: 0.9, radius: 0.092, distance: 0.16, phase: 0.0, speed: 0.42, baseY: 0.06, frontBias: 0.18 },
+  { hue: 0.6, saturation: 0.98, lightness: 0.66, radius: 0.104, distance: 0.24, phase: 1.25, speed: 0.58, baseY: 0.12, frontBias: 0.11 },
+  { hue: 0.5, saturation: 0.99, lightness: 0.64, radius: 0.098, distance: 0.25, phase: 2.1, speed: 0.62, baseY: 0.08, frontBias: 0.09 },
+  { hue: 0.3, saturation: 0.96, lightness: 0.63, radius: 0.102, distance: 0.26, phase: 3.05, speed: 0.54, baseY: 0.14, frontBias: 0.1 },
+  { hue: 0.7, saturation: 0.94, lightness: 0.66, radius: 0.106, distance: 0.25, phase: 4.2, speed: 0.66, baseY: 0.07, frontBias: 0.12 }
 ];
 
 const pedestal = new THREE.Mesh(
@@ -150,6 +157,7 @@ const actionLabel = (actionKey) => {
   if (actionKey === ACTION_KEYS.IDLE) return "待机";
   if (actionKey === ACTION_KEYS.GREETING) return "打招呼";
   if (actionKey === ACTION_KEYS.DANCING) return "跳舞";
+  if (actionKey === EFFECT_KEYS.LIGHT_ORBS) return "点亮光球";
   return "未识别";
 };
 
@@ -212,16 +220,34 @@ const updateVoiceUi = ({ listening = voiceListening, hint } = {}) => {
   }
 
   voiceButton.textContent = listening ? "正在听你说话..." : "语音触发动作";
-  voiceHint.textContent = hint || (listening ? "请说“打招呼”“跳舞”或“待机”" : "可以说“打招呼”“跳舞”或“待机”");
+  voiceHint.textContent = hint || (listening ? "请说“打招呼”“跳舞”“待机”或“点亮光球”" : "可以说“打招呼”“跳舞”“待机”或“点亮光球”");
 };
 
 const inferLocalAction = (transcript) => {
   const text = String(transcript || "").trim();
   if (!text) return null;
+  if (
+    (text.includes("光球") || text.includes("能量球") || text.includes("球体")) &&
+    (text.includes("亮") || text.includes("点亮") || text.includes("发光") || text.includes("点灯"))
+  ) {
+    return EFFECT_KEYS.LIGHT_ORBS;
+  }
   if (text.includes("待机") || text.includes("休息") || text.includes("站好")) return ACTION_KEYS.IDLE;
   if (text.includes("跳") || text.includes("舞")) return ACTION_KEYS.DANCING;
   if (text.includes("招呼") || text.includes("挥") || text.includes("手")) return ACTION_KEYS.GREETING;
   return null;
+};
+
+const triggerOrbIgnition = () => {
+  orbChargeTarget = 1;
+  orbChargePulse = 0;
+  setStatus("五个光球正在缓慢点亮");
+};
+
+const resetOrbCharge = () => {
+  orbCharge = 0.42;
+  orbChargeTarget = 0.42;
+  orbChargePulse = 0;
 };
 
 const resolveIntentWithKimi = async (transcript) => {
@@ -255,7 +281,9 @@ const handleTranscript = async (transcript) => {
 
   try {
     const payload = await resolveIntentWithKimi(transcript);
-    const actionKey = payload?.intent === ACTION_KEYS.DANCING
+    const actionKey = payload?.intent === EFFECT_KEYS.LIGHT_ORBS
+      ? EFFECT_KEYS.LIGHT_ORBS
+      : payload?.intent === ACTION_KEYS.DANCING
       ? ACTION_KEYS.DANCING
       : payload?.intent === ACTION_KEYS.GREETING
         ? ACTION_KEYS.GREETING
@@ -270,15 +298,21 @@ const handleTranscript = async (transcript) => {
         action: actionLabel(actionKey),
         detail: payload?.reply || "Kimi 意图识别"
       });
-      setStatus(
-        payload?.reply ||
-        (actionKey === ACTION_KEYS.DANCING
-          ? "Kimi 判定：跳舞"
-          : actionKey === ACTION_KEYS.GREETING
-            ? "Kimi 判定：打招呼"
-            : "Kimi 判定：回到待机")
-      );
-      playAction(actionKey, { force: true });
+      if (actionKey === EFFECT_KEYS.LIGHT_ORBS) {
+        setStatus(payload?.reply || "Kimi 判定：点亮光球");
+        triggerOrbIgnition();
+      } else {
+        setStatus(
+          payload?.reply ||
+          (actionKey === ACTION_KEYS.DANCING
+            ? "Kimi 判定：跳舞"
+            : actionKey === ACTION_KEYS.GREETING
+              ? "Kimi 判定：打招呼"
+              : "Kimi 判定：回到待机")
+        );
+        playAction(actionKey, { force: true });
+      }
+      setControlsEnabled(true);
       return;
     }
   } catch (error) {
@@ -299,16 +333,22 @@ const handleTranscript = async (transcript) => {
       action: actionLabel(fallbackAction),
       detail: "本地关键词兜底"
     });
-    setStatus(
-      `本地识别：${
-        fallbackAction === ACTION_KEYS.DANCING
-          ? "跳舞"
-          : fallbackAction === ACTION_KEYS.GREETING
-            ? "打招呼"
-            : "待机"
-      }`
-    );
-    playAction(fallbackAction, { force: true });
+    if (fallbackAction === EFFECT_KEYS.LIGHT_ORBS) {
+      setStatus("本地识别：点亮光球");
+      triggerOrbIgnition();
+    } else {
+      setStatus(
+        `本地识别：${
+          fallbackAction === ACTION_KEYS.DANCING
+            ? "跳舞"
+            : fallbackAction === ACTION_KEYS.GREETING
+              ? "打招呼"
+              : "待机"
+        }`
+      );
+      playAction(fallbackAction, { force: true });
+    }
+    setControlsEnabled(true);
     return;
   }
 
@@ -328,10 +368,12 @@ const resetRevealFx = () => {
   glowRing.visible = false;
   aura.visible = false;
   orbSwarmRoot.visible = false;
+  orbSwarmRoot.scale.setScalar(1);
   glowRing.material.opacity = 0;
   glowRing.scale.setScalar(1);
   aura.material.opacity = 0;
   pedestal.material.emissiveIntensity = 0.6;
+  resetOrbCharge();
 };
 
 const fibonacciPoint = (index, total, radius) => {
@@ -345,7 +387,7 @@ const fibonacciPoint = (index, total, radius) => {
 };
 
 const createOrbCluster = (config, clusterIndex) => {
-  const particleCount = 640;
+  const particleCount = 1100;
   const positions = new Float32Array(particleCount * 3);
   const colors = new Float32Array(particleCount * 3);
   const baseOffsets = new Float32Array(particleCount * 3);
@@ -371,9 +413,9 @@ const createOrbCluster = (config, clusterIndex) => {
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.PointsMaterial({
-    size: clusterIndex === 0 ? 0.011 : 0.0095,
+    size: clusterIndex === 0 ? 0.021 : 0.018,
     transparent: true,
-    opacity: clusterIndex === 0 ? 0.98 : 0.93,
+    opacity: clusterIndex === 0 ? 1 : 0.96,
     depthWrite: false,
     depthTest: false,
     vertexColors: true,
@@ -404,24 +446,35 @@ const initOrbSwarm = () => {
 const updateOrbSwarm = (elapsed) => {
   if (!orbSwarmRoot.visible) return;
 
+  orbCharge += (orbChargeTarget - orbCharge) * 0.045;
+  orbChargePulse = Math.min(1, orbChargePulse + 0.018);
+
   for (let clusterIndex = 0; clusterIndex < orbClusters.length; clusterIndex += 1) {
     const cluster = orbClusters[clusterIndex];
     const { config, geometry, positions, colors, baseOffsets, color, points } = cluster;
-    const { distance, phase, speed, hue, saturation, lightness, baseY } = config;
+    const { distance, phase, speed, hue, saturation, lightness, baseY, frontBias } = config;
+    const material = points.material;
+    const activeCharge = orbCharge + Math.sin(elapsed * 2 + clusterIndex * 0.8) * 0.05;
 
-    let cx = Math.sin(elapsed * speed * 0.7 + phase) * distance * 0.72;
-    let cy = Math.cos(elapsed * speed * 0.5 + phase * 1.5) * distance * 0.22 + baseY;
-    let cz = Math.sin(elapsed * speed * 0.9 + phase * 2.1) * distance * 0.32 + 0.06;
+    let cx = Math.sin(elapsed * speed * 0.82 + phase) * distance * (0.95 + activeCharge * 0.08);
+    let cy = Math.cos(elapsed * speed * 0.56 + phase * 1.3) * distance * 0.18 + baseY;
+    let cz =
+      Math.cos(elapsed * speed * 0.74 + phase * 1.7) * distance * 0.18 +
+      frontBias +
+      activeCharge * 0.06;
 
     if (clusterIndex === 0) {
-      cx = Math.sin(elapsed * 0.45) * 0.02;
-      cy = Math.cos(elapsed * 0.38) * 0.012 + 0.09;
-      cz = distance * 0.96 + 0.05;
+      cx = Math.sin(elapsed * 0.46) * 0.04;
+      cy = Math.cos(elapsed * 0.38) * 0.018 + 0.15;
+      cz = distance * 1.02 + 0.22 + activeCharge * 0.08;
     }
 
     points.position.set(cx, cy, cz);
     points.rotation.y = elapsed * (0.18 + clusterIndex * 0.035);
     points.rotation.x = Math.sin(elapsed * 0.4 + phase) * 0.22;
+    points.scale.setScalar(1 + activeCharge * 0.56 + orbChargePulse * 0.14);
+    material.size = (clusterIndex === 0 ? 0.021 : 0.018) * (1 + activeCharge * 0.82 + orbChargePulse * 0.08);
+    material.opacity = Math.min(1, (clusterIndex === 0 ? 0.98 : 0.93) * (0.8 + activeCharge * 0.55));
 
     const shimmerBase = Math.sin(elapsed * (1.8 + clusterIndex * 0.18)) * 0.08;
     for (let i = 0; i < positions.length; i += 3) {
@@ -431,7 +484,11 @@ const updateOrbSwarm = (elapsed) => {
       positions[i + 2] = baseOffsets[i + 2];
 
       const shimmer = shimmerBase + Math.sin(elapsed * 2.4 + pIndex * 0.09 + phase) * 0.05;
-      color.setHSL(hue, saturation, Math.min(0.97, lightness + shimmer));
+      color.setHSL(
+        hue,
+        Math.min(1, saturation + activeCharge * 0.08),
+        Math.min(0.995, lightness + shimmer + activeCharge * 0.18 + orbChargePulse * 0.04)
+      );
       colors[i] = color.r;
       colors[i + 1] = color.g;
       colors[i + 2] = color.b;
@@ -583,7 +640,7 @@ const initVoiceRecognition = () => {
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
-    updateVoiceUi({ listening: true, hint: "请说“打招呼”“跳舞”或“待机”" });
+    updateVoiceUi({ listening: true, hint: "请说“打招呼”“跳舞”“待机”或“点亮光球”" });
     setStatus("火柴人正在听你的动作指令");
   };
 
