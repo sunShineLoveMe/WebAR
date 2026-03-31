@@ -139,7 +139,7 @@ anchor.group.add(aura);
 
 const orbSwarmRoot = new THREE.Group();
 orbSwarmRoot.visible = false;
-orbSwarmRoot.position.set(0, 1.6, 0);
+orbSwarmRoot.position.set(0, 3, 0);
 anchor.group.add(orbSwarmRoot);
 
 const setStatus = (text) => {
