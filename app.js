@@ -139,7 +139,7 @@ anchor.group.add(aura);
 
 const orbSwarmRoot = new THREE.Group();
 orbSwarmRoot.visible = false;
-orbSwarmRoot.position.set(0, 3, 0);
+orbSwarmRoot.position.set(0, 3, 0.18);
 anchor.group.add(orbSwarmRoot);
 
 const setStatus = (text) => {
@@ -375,12 +375,14 @@ const createOrbCluster = (config, clusterIndex) => {
     transparent: true,
     opacity: clusterIndex === 0 ? 0.98 : 0.93,
     depthWrite: false,
+    depthTest: false,
     vertexColors: true,
     blending: THREE.AdditiveBlending,
     sizeAttenuation: true
   });
 
   const points = new THREE.Points(geometry, material);
+  points.renderOrder = 10 + clusterIndex;
   orbSwarmRoot.add(points);
 
   orbClusters.push({
@@ -407,14 +409,14 @@ const updateOrbSwarm = (elapsed) => {
     const { config, geometry, positions, colors, baseOffsets, color, points } = cluster;
     const { distance, phase, speed, hue, saturation, lightness, baseY } = config;
 
-    let cx = Math.sin(elapsed * speed * 0.7 + phase) * distance;
+    let cx = Math.sin(elapsed * speed * 0.7 + phase) * distance * 0.72;
     let cy = Math.cos(elapsed * speed * 0.5 + phase * 1.5) * distance * 0.22 + baseY;
-    let cz = Math.sin(elapsed * speed * 0.9 + phase * 2.1) * distance * 0.45;
+    let cz = Math.sin(elapsed * speed * 0.9 + phase * 2.1) * distance * 0.32 + 0.06;
 
     if (clusterIndex === 0) {
       cx = Math.sin(elapsed * 0.45) * 0.02;
       cy = Math.cos(elapsed * 0.38) * 0.012 + 0.09;
-      cz = distance * 0.88;
+      cz = distance * 0.96 + 0.05;
     }
 
     points.position.set(cx, cy, cz);
